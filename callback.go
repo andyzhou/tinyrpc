@@ -78,6 +78,9 @@ func (r *RpcCallBack) StreamReq(stream proto.PacketService_StreamReqServer) erro
 		}
 	}()
 
+	//node up
+	r.nodeFace.AddStream(remoteAddr, stream)
+
 	//try receive stream data from node
 	for {
 		select {
