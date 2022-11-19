@@ -23,7 +23,7 @@ type RpcNode struct {
 }
 
 //construct
-func NewGRpcNode() *RpcNode {
+func NewRpcNode() *RpcNode {
 	this := &RpcNode{
 		remoteStreams: map[string]proto.PacketService_StreamReqServer{},
 	}
@@ -45,15 +45,30 @@ func (r *RpcNode) CastToNodes(packet *proto.Packet, nodes ...string) error {
 		err error
 	)
 	//check
-	if nodes == nil || packet == nil || len(r.remoteStreams) <= 0 {
+	if packet == nil {
 		return errors.New("invalid parameter")
 	}
-	//cast to all remote stream
-	for _, node := range nodes {
-		stream, isOk = r.remoteStreams[node]
-		if !isOk {
-			continue
+	if len(r.remoteStreams) <= 0 {
+		return errors.New("no any nodes")
+	}
+	
+	//cast to relate nodes
+	if nodes != nil {
+		for _, node := range nodes {
+			stream, isOk = r.remoteStreams[node]
+			if !isOk {
+				continue
+			}
+			err = stream.Send(packet)
+			if err != nil {
+				log.Printf("RpcNode::CastToNodes, send to %v failed, err:%v", node, err.Error())
+			}
 		}
+		return nil
+	}
+
+	//send to all
+	for node, stream := range r.remoteStreams {
 		err = stream.Send(packet)
 		if err != nil {
 			log.Printf("RpcNode::CastToNodes, send to %v failed, err:%v", node, err.Error())

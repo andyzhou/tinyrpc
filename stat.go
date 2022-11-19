@@ -29,7 +29,7 @@ type RpcStat struct {
 var RunRpcStat *RpcStat
 
 //construct
-func NewGRPCStat(nodeFace *RpcNode) *RpcStat {
+func NewRpcStat(nodeFace *RpcNode) *RpcStat {
 	this := &RpcStat{
 		nodeFace:nodeFace,
 		connMap: map[*stats.ConnTagInfo]string{},
@@ -52,13 +52,13 @@ func (h *RpcStat) GetConnTagFromContext(ctx context.Context) (*stats.ConnTagInfo
 
 //cb for rpc api
 func (h *RpcStat) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
-	log.Println("TagConn, from address:", info.RemoteAddr)
+	log.Printf("TagConn, from address:%v\n", info.RemoteAddr)
 	return context.WithValue(ctx, connCtxKey{}, info)
 }
 
 //cb for rpc api
 func (h *RpcStat) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context {
-	log.Println("TagRPC, method name:", info.FullMethodName)
+	//log.Printf("TagRPC, method name:%v\n", info.FullMethodName)
 	return ctx
 }
 
@@ -69,7 +69,7 @@ func (h *RpcStat) HandleConn(ctx context.Context, s stats.ConnStats) {
 	defer h.Unlock()
 	tag, ok := h.GetConnTagFromContext(ctx)
 	if !ok {
-		log.Printf("can not get conn tag")
+		log.Printf("can not get conn tag\n")
 		return
 	}
 

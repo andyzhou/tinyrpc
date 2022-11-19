@@ -1,10 +1,12 @@
 package tinyrpc
 
 import (
+	"errors"
 	"fmt"
 	"github.com/andyzhou/tinyrpc/proto"
 	"google.golang.org/grpc"
 	"net"
+	"sync"
 )
 
 /*
@@ -22,6 +24,7 @@ type RpcService struct {
 	rpcStat *RpcStat `inter rpc stat`
 	rpcCB *RpcCallBack `inter rpc service callback`
 	rpcNode *RpcNode `inter rpc node`
+	sync.RWMutex
 }
 
 //construct (STEP1)
@@ -33,12 +36,12 @@ func NewRpcService(ports ...int) *RpcService {
 	}
 
 	//self init
-	rpcNode := NewGRpcNode()
+	rpcNode := NewRpcNode()
 	this := &RpcService{
 		port:port,
 		address:fmt.Sprintf(":%d", port),
 		rpcNode: rpcNode,
-		rpcStat: NewGRPCStat(rpcNode),
+		rpcStat: NewRpcStat(rpcNode),
 		rpcCB: NewRpcCallBack(rpcNode),
 	}
 	//inter init
@@ -51,6 +54,44 @@ func (r *RpcService) Quit() {
 	if r.service != nil {
 		r.service.Stop()
 	}
+}
+
+//send stream data to remote client
+func (r *RpcService) SendStreamToClient(remoteAddr string, in *proto.Packet) error {
+	//check
+	if remoteAddr == "" || in == nil {
+		return errors.New("invalid parameter")
+	}
+
+	//get client stream
+	stream, err := r.rpcNode.GetStream(remoteAddr)
+	if err != nil {
+		return err
+	}
+
+	//send to client
+	err = stream.SendMsg(in)
+	return err
+}
+
+//send stream data to all remote client
+func (r *RpcService) SendStreamToAll(in *proto.Packet) error {
+	//check
+	if in == nil {
+		return errors.New("invalid parameter")
+	}
+	err := r.rpcNode.CastToNodes(in)
+	return err
+}
+
+//get port
+func (r *RpcService) GetPort() int {
+	return r.port
+}
+
+//gen new packet
+func (r *RpcService) GenPacket() *proto.Packet {
+	return &proto.Packet{}
 }
 
 //set callback for stream request (STEP2-1)

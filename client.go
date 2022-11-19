@@ -37,7 +37,13 @@ type RpcClient struct {
 }
 
 //construct
-func NewRpcClient(address string, mode int) *RpcClient {
+func NewRpcClient(address string, modes ...int) *RpcClient {
+	//set mode
+	mode := ModeOfRpcGen
+	if modes != nil && len(modes) > 0 {
+		mode = modes[0]
+	}
+	//self init
 	this := &RpcClient{
 		address:address,
 		mode:mode,
@@ -114,8 +120,13 @@ func (n *RpcClient) SendStreamData(data *proto.Packet) error {
 	return nil
 }
 
+//gen new packet
+func (n *RpcClient) GenPacket() *proto.Packet {
+	return &proto.Packet{}
+}
+
 //set call back for received stream data of outside
-func (n *RpcClient) SetCallBack(cb func(*proto.Packet)bool) {
+func (n *RpcClient) SetStreamCallBack(cb func(*proto.Packet)bool) {
 	n.cb = cb
 }
 
@@ -159,7 +170,7 @@ func (n *RpcClient) ping(isReConn bool) error {
 		n.Unlock()
 	}
 
-	if n.mode == ModeOfRpcGen {
+	if n.mode <= ModeOfRpcGen {
 		return nil
 	}
 
@@ -274,7 +285,7 @@ func (n *RpcClient) checkServerConn() bool {
 func (n *RpcClient) runMainProcess() {
 	var (
 		ticker = time.NewTicker(time.Second * NodeCheckRate)
-		data *proto.Packet
+		data proto.Packet
 		needQuit, isOk bool
 	)
 	defer func() {
@@ -294,13 +305,13 @@ func (n *RpcClient) runMainProcess() {
 		case data, isOk = <- n.sendChan:
 			if isOk {
 				//try send to remote server
-				n.sendDataToServer(data)
+				n.sendDataToServer(&data)
 			}
 		case data, isOk = <- n.receiveChan:
 			if isOk {
 				//run callback func to process received data
 				if n.cb != nil {
-					n.cb(data)
+					n.cb(&data)
 				}
 			}
 		case <- ticker.C:

@@ -9,6 +9,7 @@ const (
 const (
 	ModeOfRpcGen = iota
 	ModeOfRpcStream
+	ModeOfRpcAll
 )
 
 //rpc packet kind

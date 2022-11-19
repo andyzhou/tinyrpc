@@ -1,6 +1,5 @@
 package tinyrpc
 
-
 import (
 	"errors"
 	"fmt"
@@ -9,7 +8,6 @@ import (
 	"io"
 	"log"
 	"sync"
-	"time"
 )
 
 /*
@@ -46,7 +44,7 @@ func (r *RpcCallBack) SetCBForGen(cb func(string,[]byte)[]byte) {
 	r.generalCB = cb
 }
 
-//grpc call back for stream data from client
+//receive stream data from client
 func (r *RpcCallBack) StreamReq(stream proto.PacketService_StreamReqServer) error {
 	var (
 		in *proto.Packet
@@ -54,8 +52,12 @@ func (r *RpcCallBack) StreamReq(stream proto.PacketService_StreamReqServer) erro
 		tips string
 	)
 
+	//get context
+	ctx := stream.Context()
+
 	//get tag by stream
-	tag, ok := RunRpcStat.GetConnTagFromContext(stream.Context())
+	tag, ok := RunRpcStat.GetConnTagFromContext(ctx)
+	log.Printf("service.RpcCallBack:StreamReq, tag:%v, ok:%v\n", tag, ok)
 	if !ok {
 		tips = "Can't get tag from node stream."
 		log.Println(tips)
@@ -63,30 +65,49 @@ func (r *RpcCallBack) StreamReq(stream proto.PacketService_StreamReqServer) erro
 	}
 
 	//check or sync remote rpc client info
+	remoteAddr := tag.RemoteAddr.String()
 	if r.nodeFace != nil {
-		r.nodeFace.AddStream(tag.RemoteAddr.String(), stream)
+		log.Printf("service.RpcCallBack:StreamReq, add stream, remoteAddr:%v\n", remoteAddr)
+		r.nodeFace.AddStream(remoteAddr, stream)
 	}
+
+	//defer
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("service.RpcCallBack:StreamReq panic, err:%v\n", err)
+		}
+	}()
 
 	//try receive stream data from node
 	for {
-		in, err = stream.Recv()
-		if err != nil {
-			if err == io.EOF {
-				return nil
+		select {
+		case <- ctx.Done():
+			{
+				log.Println("service.RpcCallBack:StreamReq, Receive down signal from client")
+				return ctx.Err()
 			}
-			return err
+		default:
+			{
+				in, err = stream.Recv()
+				log.Printf("service.RpcCallBack:StreamReq, in:%v, err:%v\n", err, in)
+				if err != nil {
+					if err == io.EOF {
+						return nil
+					}
+					return err
+				}
+				//received real packet data from client, process it.
+				//run callback of outside rpc server
+				if r.streamCB != nil {
+					r.streamCB(remoteAddr, in.Data)
+				}
+			}
 		}
-		//received real packet data from client, process it.
-		//run callback of outside rpc server
-		if r.streamCB != nil {
-			r.streamCB(tag.RemoteAddr.String(), in.Data)
-		}
-		time.Sleep(time.Second/10)
 	}
 	return nil
 }
 
-//grpc call back for general request
+//receive general request from client
 func (r *RpcCallBack) SendReq(ctx context.Context, in *proto.Packet) (*proto.Packet, error) {
 	var (
 		remoteAddr string
@@ -105,7 +126,6 @@ func (r *RpcCallBack) SendReq(ctx context.Context, in *proto.Packet) (*proto.Pac
 		if ok {
 			remoteAddr = tag.RemoteAddr.String()
 		}
-		log.Println("GRPCCallBack::SendReq, remoteAddr:", remoteAddr, ", ok:", ok)
 		packetData := r.generalCB(remoteAddr, in.Data)
 		in.Data = packetData
 	}
