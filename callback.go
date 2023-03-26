@@ -1,7 +1,6 @@
 package tinyrpc
 
 import (
-	"errors"
 	"fmt"
 	"github.com/andyzhou/tinyrpc/proto"
 	"golang.org/x/net/context"
@@ -14,6 +13,8 @@ import (
  * RPC service callback for service
  * @author <AndyZhou>
  * @mail <diudiu8848@163.com>
+ *
+ * - support general and stream mode
  */
 
 //callback face
@@ -21,7 +22,7 @@ type RpcCallBack struct {
 	//callback for service from outside
 	streamCB func(string,[]byte)bool `cb for stream data`
 	//callback for service from outside
-	generalCB func(string,[]byte)[]byte `cb for general data` //input/return packet data
+	generalCB func(string,[]byte)([]byte, error) `cb for general data` //input/return packet data
 	nodeFace *RpcNode `node interface from outside`
 	sync.RWMutex
 }
@@ -40,16 +41,17 @@ func (r *RpcCallBack) SetCBForStream(cb func(string,[]byte)bool) {
 }
 
 //set callback for general request
-func (r *RpcCallBack) SetCBForGen(cb func(string,[]byte)[]byte) {
+func (r *RpcCallBack) SetCBForGen(cb func(string,[]byte)([]byte, error)) {
 	r.generalCB = cb
 }
 
 //receive stream data from client
-func (r *RpcCallBack) StreamReq(stream proto.PacketService_StreamReqServer) error {
+func (r *RpcCallBack) StreamReq(
+				stream proto.PacketService_StreamReqServer,
+			) error {
 	var (
 		in *proto.Packet
 		err error
-		tips string
 	)
 
 	//get context
@@ -57,11 +59,10 @@ func (r *RpcCallBack) StreamReq(stream proto.PacketService_StreamReqServer) erro
 
 	//get tag by stream
 	tag, ok := RunRpcStat.GetConnTagFromContext(ctx)
-	log.Printf("service.RpcCallBack:StreamReq, tag:%v, ok:%v\n", tag, ok)
 	if !ok {
-		tips = "Can't get tag from node stream."
-		log.Println(tips)
-		return errors.New(tips)
+		err = fmt.Errorf("StreamReq, can't get tag from node stream")
+		log.Println(err)
+		return err
 	}
 
 	//check or sync remote rpc client info
@@ -92,8 +93,8 @@ func (r *RpcCallBack) StreamReq(stream proto.PacketService_StreamReqServer) erro
 		default:
 			{
 				in, err = stream.Recv()
-				log.Printf("service.RpcCallBack:StreamReq, in:%v, err:%v\n", err, in)
 				if err != nil {
+					log.Printf("service.RpcCallBack:StreamReq, in:%v, err:%v\n", err, in)
 					if err == io.EOF {
 						return nil
 					}
@@ -111,27 +112,44 @@ func (r *RpcCallBack) StreamReq(stream proto.PacketService_StreamReqServer) erro
 }
 
 //receive general request from client
-func (r *RpcCallBack) SendReq(ctx context.Context, in *proto.Packet) (*proto.Packet, error) {
+func (r *RpcCallBack) SendReq(
+				ctx context.Context,
+				in *proto.Packet,
+			) (*proto.Packet, error) {
 	var (
 		remoteAddr string
+		errMsg string
 	)
 	//check
 	if in == nil {
-		errMsg := "lost parameter data"
+		errMsg = "lost parameter data"
+		in.ErrCode = ErrCodeOfInvalidPara
+		in.ErrMsg = errMsg
+		return in, fmt.Errorf(errMsg)
+	}
+	if r.generalCB == nil {
+		errMsg = "didn't setup general callback"
+		in.ErrCode = ErrCodeOfNoCallBack
 		in.ErrMsg = errMsg
 		return in, fmt.Errorf(errMsg)
 	}
 
 	//run callback of outside to process general data
-	if r.generalCB != nil {
-		//get tag by stream
-		tag, ok := RunRpcStat.GetConnTagFromContext(ctx)
-		if ok {
-			remoteAddr = tag.RemoteAddr.String()
-		}
-		packetData := r.generalCB(remoteAddr, in.Data)
-		in.Data = packetData
+	//get tag by ctx
+	tag, ok := RunRpcStat.GetConnTagFromContext(ctx)
+	if ok {
+		remoteAddr = tag.RemoteAddr.String()
 	}
 
+	//call general callback
+	packetData, err := r.generalCB(remoteAddr, in.Data)
+	if err != nil {
+		in.ErrCode = ErrCodeOfRunError
+		in.ErrMsg = err.Error()
+		return in, err
+	}
+	//format response
+	in.ErrCode = ErrCodeOfSucceed
+	in.Data = packetData
 	return in, nil
 }

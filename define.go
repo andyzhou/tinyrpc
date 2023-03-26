@@ -22,5 +22,16 @@ const (
 const (
 	NodeCheckRate = 5
 	NodeDataChanSize = 1024
-	MaxTryTimes = 5
+	MaxTryTimes = 3
+)
+
+//error code
+const (
+	ErrCodeOfSucceed = iota
+	ErrCodeOfInvalidPara
+	ErrCodeOfInterError
+	ErrCodeOfNodeDown
+	ErrCodeOfNoSuchData
+	ErrCodeOfNoCallBack
+	ErrCodeOfRunError
 )

@@ -1,6 +1,5 @@
 package tinyrpc
 
-
 import (
 	"context"
 	"google.golang.org/grpc/stats"
@@ -37,8 +36,8 @@ func NewRpcStat(nodeFace *RpcNode) *RpcStat {
 	return this
 }
 
-//clean up
-func (h *RpcStat) CleanUp() {
+//quit
+func (h *RpcStat) Quit() {
 	h.Lock()
 	defer h.Unlock()
 	h.connMap = map[*stats.ConnTagInfo]string{}

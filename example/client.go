@@ -5,6 +5,7 @@ import (
 	"github.com/andyzhou/tinyrpc"
 	"github.com/andyzhou/tinyrpc/proto"
 	"log"
+	"os"
 	"sync"
 	"time"
 )
@@ -81,14 +82,24 @@ func main() {
 
 	//init client
 	remoteAddr := fmt.Sprintf("%v:%v", DefaultRemoteHost, DefaultRemotePort)
-	c := tinyrpc.NewRpcClient(remoteAddr, tinyrpc.ModeOfRpcAll)
+	c := tinyrpc.NewRpcClient(tinyrpc.ModeOfRpcAll)
+	c.SetAddress(remoteAddr)
+	err := c.ConnectServer()
+	if err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
+
+	//send gen rpc request
+	go sendGenReqProcess(c)
+
+	//set stream cb and run as stream mode
 	c.SetStreamCallBack(cbForStreamData)
+	go sendStreamReqProcess(c)
 
 	//start send process
 	wg.Add(1)
 	log.Printf("start client...")
-	//go sendGenReqProcess(c)
-	go sendStreamReqProcess(c)
 	wg.Wait()
 	log.Printf("end client...")
 }

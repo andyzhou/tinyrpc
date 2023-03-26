@@ -14,9 +14,9 @@ func cbForNodeDown(addr string) bool {
 	log.Printf("cbForNodeDown, addr:%v", addr)
 	return true
 }
-func cbForGenReq(addr string, data []byte) []byte {
+func cbForGenReq(addr string, data []byte) ([]byte, error) {
 	log.Printf("cbForGenReq, addr:%v, data:%v", addr, data)
-	return data
+	return data, nil
 }
 func cbForStreamReq(addr string, data []byte) bool {
 	log.Printf("cbForStreamReq, addr:%v, data:%v", addr, data)

@@ -1,6 +1,5 @@
 package tinyrpc
 
-
 import (
 	"context"
 	"errors"
@@ -16,9 +15,10 @@ import (
  * rpc client interface
  * @author <AndyZhou>
  * @mail <diudiu8848@163.com>
- * - use stream data for communicate
- * - one node one client
+ *
+ * - support gen and stream data for communicate
  * - use outside call back for received stream data
+ * - one node, one client
  */
 
 //rpc client face
@@ -31,32 +31,30 @@ type RpcClient struct {
 	stream proto.PacketService_StreamReqClient `stream packet client`
 	receiveChan chan proto.Packet `packet chan for receive outside`
 	sendChan chan proto.Packet `packet chan for send`
-	closeChan chan bool
+	receiveCloseChan chan struct{}
+	closeChan chan struct{}
+	hasRun bool
 	ctx context.Context
 	sync.RWMutex
 }
 
 //construct
-func NewRpcClient(address string, modes ...int) *RpcClient {
-	//set mode
-	mode := ModeOfRpcGen
+func NewRpcClient(modes ...int) *RpcClient {
+	//set default mode
+	mode := ModeOfRpcAll
 	if modes != nil && len(modes) > 0 {
 		mode = modes[0]
 	}
+
 	//self init
 	this := &RpcClient{
-		address:address,
-		mode:mode,
+		mode: mode,
 		sendChan:make(chan proto.Packet, NodeDataChanSize),
 		receiveChan:make(chan proto.Packet, NodeDataChanSize),
-		closeChan:make(chan bool, 1),
+		receiveCloseChan:make(chan struct{}, 1),
+		closeChan:make(chan struct{}, 2),
 		ctx:context.Background(),
 	}
-
-	//spawn main process
-	go this.runMainProcess()
-	//try ping server
-	go this.ping(false)
 	return this
 }
 
@@ -69,6 +67,34 @@ func (n *RpcClient) Quit() {
 	if n.closeChan != nil {
 		close(n.closeChan)
 	}
+}
+
+//set address
+func (n *RpcClient) SetAddress(address string) error{
+	if address == "" {
+		return errors.New("invalid parameter")
+	}
+	n.address = address
+	return nil
+}
+
+//try connect server
+func (n *RpcClient) ConnectServer() error {
+	//check
+	if n.address == "" {
+		return errors.New("server address didn't setup")
+	}
+	err := n.ping(true)
+	if err != nil {
+		return err
+	}
+	if !n.hasRun {
+		//spawn relate process
+		go n.tickerProcess()
+		go n.runMainProcess()
+		n.hasRun = true
+	}
+	return nil
 }
 
 //send general data to remote server
@@ -96,7 +122,6 @@ func (n *RpcClient) SendRequest(req *proto.Packet) (*proto.Packet, error) {
 	resp, err := n.client.SendReq(context.Background(), req)
 	return resp, err
 }
-
 
 //send stream data to remote server
 //async mode
@@ -153,6 +178,9 @@ func (n *RpcClient) ping(isReConn bool) error {
 			n.conn = nil
 		}
 	}
+	if n.address == "" {
+		return errors.New("didn't setup server address")
+	}
 
 	//check and init rpc connect
 	if n.conn == nil {
@@ -170,6 +198,12 @@ func (n *RpcClient) ping(isReConn bool) error {
 		n.Unlock()
 	}
 
+	//force close last stream receiver
+	if n.receiveCloseChan != nil {
+		n.receiveCloseChan <- struct{}{}
+	}
+
+	//if only gen rpc, do nothing
 	if n.mode <= ModeOfRpcGen {
 		return nil
 	}
@@ -203,11 +237,13 @@ func (n *RpcClient) ping(isReConn bool) error {
 	return nil
 }
 
-
 //receive stream data from server
-func (n *RpcClient) receiveServerStream(stream proto.PacketService_StreamReqClient) {
+func (n *RpcClient) receiveServerStream(
+				stream proto.PacketService_StreamReqClient,
+			) {
 	var (
 		in *proto.Packet
+		isOk bool
 		err error
 	)
 
@@ -220,6 +256,11 @@ func (n *RpcClient) receiveServerStream(stream proto.PacketService_StreamReqClie
 
 	//receive data use for loop
 	for {
+		//try get close chan
+		_, isOk = <- n.closeChan
+		if isOk {
+			break
+		}
 		//receive data
 		in, err = stream.Recv()
 		if err != nil {
@@ -247,7 +288,7 @@ func (n *RpcClient) sendDataToServer(data *proto.Packet) error {
 	//send stream data
 	err := n.stream.Send(data)
 	if err != nil {
-		log.Printf("RpcClient::sendDataToServer, send data failed, err:%v", err.Error())
+		log.Printf("RpcClient::sendDataToServer, send data failed, err:%v\n", err.Error())
 		return err
 	}
 	return nil
@@ -258,6 +299,9 @@ func (n *RpcClient) checkServerStatus() {
 	var (
 		needPing bool
 	)
+	if n.address == "" {
+		return
+	}
 	if n.conn == nil {
 		//try reconnect
 		needPing = true
@@ -281,26 +325,54 @@ func (n *RpcClient) checkServerConn() bool {
 	return true
 }
 
-//run main process
-func (n *RpcClient) runMainProcess() {
+//ticker process
+func (n *RpcClient) tickerProcess() {
 	var (
 		ticker = time.NewTicker(time.Second * NodeCheckRate)
+	)
+	defer func() {
+		if err := recover(); err != nil {
+			log.Printf("RpcClient::tickerProcess panic, err:%v", err)
+		}
+		//stop ticker
+		ticker.Stop()
+	}()
+
+	//check server first time
+	n.checkServerStatus()
+
+	//loop
+	for {
+		select {
+		case <- ticker.C:
+			//check server status
+			n.checkServerStatus()
+		case <- n.closeChan:
+			return
+		}
+	}
+}
+
+//run main process
+//used for send and receiver stream data
+func (n *RpcClient) runMainProcess() {
+	var (
 		data proto.Packet
-		needQuit, isOk bool
+		isOk bool
 	)
 	defer func() {
 		if err := recover(); err != nil {
 			log.Printf("RpcClient::runMainProcess panic, err:%v", err)
 		}
-		ticker.Stop()
+		//close relate chan
+		close(n.sendChan)
+		close(n.receiveChan)
+		close(n.closeChan)
 		log.Printf("RpcClient::runMainProcess of %v need quit..", n.address)
 	}()
 
 	//loop
 	for {
-		if needQuit && len(n.sendChan) <= 0 {
-			break
-		}
 		select {
 		case data, isOk = <- n.sendChan:
 			if isOk {
@@ -314,9 +386,6 @@ func (n *RpcClient) runMainProcess() {
 					n.cb(&data)
 				}
 			}
-		case <- ticker.C:
-			//check server status
-			n.checkServerStatus()
 		case <- n.closeChan:
 			return
 		}

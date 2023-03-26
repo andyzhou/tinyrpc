@@ -16,3 +16,4 @@
 .idea
 server
 client
+*_darwin

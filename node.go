@@ -1,6 +1,5 @@
 package tinyrpc
 
-
 import (
 	"errors"
 	"github.com/andyzhou/tinyrpc/proto"
@@ -12,6 +11,7 @@ import (
  * Node interface for service
  * @author <AndyZhou>
  * @mail <diudiu8848@163.com>
+ *
  * used for manage remote rpc client address of stream mode
  */
 
@@ -38,7 +38,10 @@ func (r *RpcNode) Quit() {
 }
 
 //cast packet to streams nodes
-func (r *RpcNode) CastToNodes(packet *proto.Packet, nodes ...string) error {
+func (r *RpcNode) CastToNodes(
+				packet *proto.Packet,
+				nodes ...string,
+			) error {
 	var (
 		stream proto.PacketService_StreamReqServer
 		isOk bool
@@ -56,12 +59,13 @@ func (r *RpcNode) CastToNodes(packet *proto.Packet, nodes ...string) error {
 	if nodes != nil {
 		for _, node := range nodes {
 			stream, isOk = r.remoteStreams[node]
-			if !isOk {
+			if !isOk || stream == nil {
 				continue
 			}
 			err = stream.Send(packet)
 			if err != nil {
-				log.Printf("RpcNode::CastToNodes, send to %v failed, err:%v", node, err.Error())
+				log.Printf("RpcNode::CastToNodes, send to %v failed, err:%v\n",
+					node, err.Error())
 			}
 		}
 		return nil
@@ -71,7 +75,8 @@ func (r *RpcNode) CastToNodes(packet *proto.Packet, nodes ...string) error {
 	for node, stream := range r.remoteStreams {
 		err = stream.Send(packet)
 		if err != nil {
-			log.Printf("RpcNode::CastToNodes, send to %v failed, err:%v", node, err.Error())
+			log.Printf("RpcNode::CastToNodes, send to %v failed, err:%v\n",
+				node, err.Error())
 		}
 	}
 	return nil
@@ -81,9 +86,7 @@ func (r *RpcNode) CastToNodes(packet *proto.Packet, nodes ...string) error {
 func (r *RpcNode) CleanUp() {
 	r.Lock()
 	defer r.Unlock()
-	for k, _ := range r.remoteStreams {
-		delete(r.remoteStreams, k)
-	}
+	r.remoteStreams = map[string]proto.PacketService_StreamReqServer{}
 }
 
 //get all streams
@@ -93,9 +96,11 @@ func (r *RpcNode) GetAllStreams() map[string]proto.PacketService_StreamReqServer
 
 //remove stream
 func (r *RpcNode) RemoveStream(remoteAddr string) bool {
+	//check
 	if remoteAddr == "" {
 		return false
 	}
+	//remove from map
 	r.Lock()
 	defer r.Unlock()
 	delete(r.remoteStreams, remoteAddr)
@@ -103,10 +108,15 @@ func (r *RpcNode) RemoveStream(remoteAddr string) bool {
 }
 
 //get stream
-func (r *RpcNode) GetStream(remoteAddr string) (proto.PacketService_StreamReqServer, error) {
+func (r *RpcNode) GetStream(
+				remoteAddr string,
+			) (proto.PacketService_StreamReqServer, error) {
 	//check
 	if remoteAddr == "" {
 		return nil, errors.New("invalid parameter")
+	}
+	if r.remoteStreams == nil || len(r.remoteStreams) <= 0 {
+		return nil, errors.New("no any remote streams")
 	}
 	//get with locker
 	r.Lock()
@@ -119,7 +129,10 @@ func (r *RpcNode) GetStream(remoteAddr string) (proto.PacketService_StreamReqSer
 }
 
 //check or add remote client stream info
-func (r *RpcNode) AddStream(remoteAddr string, stream proto.PacketService_StreamReqServer) error {
+func (r *RpcNode) AddStream(
+				remoteAddr string,
+				stream proto.PacketService_StreamReqServer,
+			) error {
 	//check
 	if remoteAddr == "" || stream == nil {
 		return errors.New("invalid parameter")

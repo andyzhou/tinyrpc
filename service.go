@@ -13,6 +13,8 @@ import (
  * rpc service interface
  * @author <AndyZhou>
  * @mail <diudiu8848@163.com>
+ *
+ * support general and stream mode
  */
 
 //rpc service face
@@ -35,8 +37,10 @@ func NewRpcService(ports ...int) *RpcService {
 		port = ports[0]
 	}
 
-	//self init
+	//init rpc nodes
 	rpcNode := NewRpcNode()
+
+	//self init
 	this := &RpcService{
 		port:port,
 		address:fmt.Sprintf(":%d", port),
@@ -54,10 +58,19 @@ func (r *RpcService) Quit() {
 	if r.service != nil {
 		r.service.Stop()
 	}
+	if r.rpcNode != nil {
+		r.rpcNode.Quit()
+	}
+	if r.rpcStat != nil {
+		r.rpcStat.Quit()
+	}
 }
 
 //send stream data to remote client
-func (r *RpcService) SendStreamToClient(remoteAddr string, in *proto.Packet) error {
+func (r *RpcService) SendStreamToClient(
+				remoteAddr string,
+				in *proto.Packet,
+			) error {
 	//check
 	if remoteAddr == "" || in == nil {
 		return errors.New("invalid parameter")
@@ -75,7 +88,9 @@ func (r *RpcService) SendStreamToClient(remoteAddr string, in *proto.Packet) err
 }
 
 //send stream data to all remote client
-func (r *RpcService) SendStreamToAll(in *proto.Packet) error {
+func (r *RpcService) SendStreamToAll(
+				in *proto.Packet,
+			) error {
 	//check
 	if in == nil {
 		return errors.New("invalid parameter")
@@ -95,12 +110,12 @@ func (r *RpcService) GenPacket() *proto.Packet {
 }
 
 //set callback for stream request (STEP2-1)
-func (r *RpcService) SetCBForStream(cb func(string,[]byte)bool) {
+func (r *RpcService) SetCBForStream(cb func(addr string, data[]byte)bool) {
 	r.rpcCB.SetCBForStream(cb)
 }
 
 //set callback for general request (STEP2-2)
-func (r *RpcService) SetCBForGeneral(cb func(string,[]byte)[]byte) {
+func (r *RpcService) SetCBForGeneral(cb func(addr string, data[]byte)([]byte, error)) {
 	r.rpcCB.SetCBForGen(cb)
 }
 
