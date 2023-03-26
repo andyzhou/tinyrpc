@@ -1,4 +1,4 @@
-package tinyrpc
+package define
 
 //default value
 const (

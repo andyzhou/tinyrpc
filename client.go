@@ -3,6 +3,7 @@ package tinyrpc
 import (
 	"context"
 	"errors"
+	"github.com/andyzhou/tinyrpc/define"
 	"github.com/andyzhou/tinyrpc/proto"
 	"google.golang.org/grpc"
 	"io"
@@ -41,7 +42,7 @@ type RpcClient struct {
 //construct
 func NewRpcClient(modes ...int) *RpcClient {
 	//set default mode
-	mode := ModeOfRpcAll
+	mode := define.ModeOfRpcAll
 	if modes != nil && len(modes) > 0 {
 		mode = modes[0]
 	}
@@ -49,8 +50,8 @@ func NewRpcClient(modes ...int) *RpcClient {
 	//self init
 	this := &RpcClient{
 		mode: mode,
-		sendChan:make(chan proto.Packet, NodeDataChanSize),
-		receiveChan:make(chan proto.Packet, NodeDataChanSize),
+		sendChan:make(chan proto.Packet, define.NodeDataChanSize),
+		receiveChan:make(chan proto.Packet, define.NodeDataChanSize),
 		receiveCloseChan:make(chan struct{}, 1),
 		closeChan:make(chan struct{}, 2),
 		ctx:context.Background(),
@@ -204,7 +205,7 @@ func (n *RpcClient) ping(isReConn bool) error {
 	}
 
 	//if only gen rpc, do nothing
-	if n.mode <= ModeOfRpcGen {
+	if n.mode <= define.ModeOfRpcGen {
 		return nil
 	}
 
@@ -212,7 +213,7 @@ func (n *RpcClient) ping(isReConn bool) error {
 	for {
 		stream, err = n.client.StreamReq(n.ctx)
 		if err != nil {
-			if maxTryTimes > MaxTryTimes {
+			if maxTryTimes > define.MaxTryTimes {
 				return err
 				break
 			}
@@ -328,7 +329,7 @@ func (n *RpcClient) checkServerConn() bool {
 //ticker process
 func (n *RpcClient) tickerProcess() {
 	var (
-		ticker = time.NewTicker(time.Second * NodeCheckRate)
+		ticker = time.NewTicker(time.Second * define.NodeCheckRate)
 	)
 	defer func() {
 		if err := recover(); err != nil {

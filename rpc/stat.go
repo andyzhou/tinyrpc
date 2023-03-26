@@ -1,4 +1,4 @@
-package tinyrpc
+package rpc
 
 import (
 	"context"

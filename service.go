@@ -3,7 +3,9 @@ package tinyrpc
 import (
 	"errors"
 	"fmt"
+	"github.com/andyzhou/tinyrpc/define"
 	"github.com/andyzhou/tinyrpc/proto"
+	"github.com/andyzhou/tinyrpc/rpc"
 	"google.golang.org/grpc"
 	"net"
 	"sync"
@@ -23,30 +25,30 @@ type RpcService struct {
 	address string `rpc service address`
 	listener net.Listener `tcp listener`
 	service *grpc.Server
-	rpcStat *RpcStat `inter rpc stat`
-	rpcCB *RpcCallBack `inter rpc service callback`
-	rpcNode *RpcNode `inter rpc node`
+	rpcStat *rpc.RpcStat   `inter rpc stat`
+	rpcCB *rpc.RpcCallBack `inter rpc service callback`
+	rpcNode *rpc.RpcNode   `inter rpc node`
 	sync.RWMutex
 }
 
 //construct (STEP1)
 func NewRpcService(ports ...int) *RpcService {
 	//set port
-	port := DefaultRpcPort
+	port := define.DefaultRpcPort
 	if ports != nil && len(ports) > 0 {
 		port = ports[0]
 	}
 
 	//init rpc nodes
-	rpcNode := NewRpcNode()
+	rpcNode := rpc.NewRpcNode()
 
 	//self init
 	this := &RpcService{
-		port:port,
-		address:fmt.Sprintf(":%d", port),
+		port:    port,
+		address: fmt.Sprintf(":%d", port),
 		rpcNode: rpcNode,
-		rpcStat: NewRpcStat(rpcNode),
-		rpcCB: NewRpcCallBack(rpcNode),
+		rpcStat: rpc.NewRpcStat(rpcNode),
+		rpcCB:   rpc.NewRpcCallBack(rpcNode),
 	}
 	//inter init
 	this.interInit()
@@ -137,7 +139,7 @@ func (r *RpcService) Start() {
 }
 
 //get node face
-func (r *RpcService) GetNode() *RpcNode {
+func (r *RpcService) GetNode() *rpc.RpcNode {
 	return r.rpcNode
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/andyzhou/tinyrpc"
+	"github.com/andyzhou/tinyrpc/define"
 	"github.com/andyzhou/tinyrpc/proto"
 	"log"
 	"os"
@@ -82,7 +83,7 @@ func main() {
 
 	//init client
 	remoteAddr := fmt.Sprintf("%v:%v", DefaultRemoteHost, DefaultRemotePort)
-	c := tinyrpc.NewRpcClient(tinyrpc.ModeOfRpcAll)
+	c := tinyrpc.NewRpcClient(define.ModeOfRpcAll)
 	c.SetAddress(remoteAddr)
 	err := c.ConnectServer()
 	if err != nil {

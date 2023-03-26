@@ -1,7 +1,8 @@
-package tinyrpc
+package rpc
 
 import (
 	"fmt"
+	"github.com/andyzhou/tinyrpc/define"
 	"github.com/andyzhou/tinyrpc/proto"
 	"golang.org/x/net/context"
 	"io"
@@ -23,7 +24,7 @@ type RpcCallBack struct {
 	streamCB func(string,[]byte)bool `cb for stream data`
 	//callback for service from outside
 	generalCB func(string,[]byte)([]byte, error) `cb for general data` //input/return packet data
-	nodeFace *RpcNode `node interface from outside`
+	nodeFace *RpcNode                            `node interface from outside`
 	sync.RWMutex
 }
 
@@ -123,13 +124,13 @@ func (r *RpcCallBack) SendReq(
 	//check
 	if in == nil {
 		errMsg = "lost parameter data"
-		in.ErrCode = ErrCodeOfInvalidPara
+		in.ErrCode = define.ErrCodeOfInvalidPara
 		in.ErrMsg = errMsg
 		return in, fmt.Errorf(errMsg)
 	}
 	if r.generalCB == nil {
 		errMsg = "didn't setup general callback"
-		in.ErrCode = ErrCodeOfNoCallBack
+		in.ErrCode = define.ErrCodeOfNoCallBack
 		in.ErrMsg = errMsg
 		return in, fmt.Errorf(errMsg)
 	}
@@ -144,12 +145,12 @@ func (r *RpcCallBack) SendReq(
 	//call general callback
 	packetData, err := r.generalCB(remoteAddr, in.Data)
 	if err != nil {
-		in.ErrCode = ErrCodeOfRunError
+		in.ErrCode = define.ErrCodeOfRunError
 		in.ErrMsg = err.Error()
 		return in, err
 	}
 	//format response
-	in.ErrCode = ErrCodeOfSucceed
+	in.ErrCode = define.ErrCodeOfSucceed
 	in.Data = packetData
 	return in, nil
 }
