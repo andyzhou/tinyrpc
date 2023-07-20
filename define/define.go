@@ -1,5 +1,7 @@
 package define
 
+import "time"
+
 //default value
 const (
 	DefaultRpcPort = 7100
@@ -12,15 +14,9 @@ const (
 	ModeOfRpcAll
 )
 
-//rpc packet kind
-const (
-	PacketKindReq = iota
-	PacketKindResp
-)
-
 //internal macro define
 const (
-	NodeCheckRate = 5
+	NodeCheckRate = 5 * time.Second //xx seconds
 	NodeDataChanSize = 1024
 	MaxTryTimes = 3
 )

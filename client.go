@@ -23,10 +23,9 @@ import (
  */
 
 //rpc client face
-type RpcClient struct {
-	address string //node remote address
+type Client struct {
 	mode int //rpc mode`
-	cb func(packet *proto.Packet)bool //call back for received stream data of outside
+	address string //node remote address
 	conn *grpc.ClientConn //rpc connect
 	client proto.PacketServiceClient //service client
 	stream proto.PacketService_StreamReqClient //stream packet client
@@ -36,11 +35,14 @@ type RpcClient struct {
 	closeChan chan struct{}
 	hasRun bool
 	ctx context.Context
+	//callback
+	cbOfStream func(packet *proto.Packet)error //cb for received stream data of outside
+	cbOfNodeDown func(node string) error //cb for service node down
 	sync.RWMutex
 }
 
 //construct
-func NewRpcClient(modes ...int) *RpcClient {
+func NewClient(modes ...int) *Client {
 	//set default mode
 	mode := define.ModeOfRpcAll
 	if modes != nil && len(modes) > 0 {
@@ -48,7 +50,7 @@ func NewRpcClient(modes ...int) *RpcClient {
 	}
 
 	//self init
-	this := &RpcClient{
+	this := &Client{
 		mode: mode,
 		sendChan:make(chan proto.Packet, define.NodeDataChanSize),
 		receiveChan:make(chan proto.Packet, define.NodeDataChanSize),
@@ -64,14 +66,14 @@ func NewRpcClient(modes ...int) *RpcClient {
 ///////
 
 //quit
-func (n *RpcClient) Quit() {
+func (n *Client) Quit() {
 	if n.closeChan != nil {
 		close(n.closeChan)
 	}
 }
 
 //set address
-func (n *RpcClient) SetAddress(address string) error{
+func (n *Client) SetAddress(address string) error{
 	if address == "" {
 		return errors.New("invalid parameter")
 	}
@@ -80,7 +82,7 @@ func (n *RpcClient) SetAddress(address string) error{
 }
 
 //connect server
-func (n *RpcClient) ConnectServer() error {
+func (n *Client) ConnectServer() error {
 	//check
 	if n.address == "" {
 		return errors.New("server address didn't setup")
@@ -100,7 +102,7 @@ func (n *RpcClient) ConnectServer() error {
 
 //send general data to remote server
 //sync mode
-func (n *RpcClient) SendRequest(req *proto.Packet) (*proto.Packet, error) {
+func (n *Client) SendRequest(req *proto.Packet) (*proto.Packet, error) {
 	//check
 	if req == nil || n.client == nil {
 		return nil, errors.New("invalid parameter")
@@ -119,7 +121,7 @@ func (n *RpcClient) SendRequest(req *proto.Packet) (*proto.Packet, error) {
 
 //send stream data to remote server
 //async mode
-func (n *RpcClient) SendStreamData(data *proto.Packet) error {
+func (n *Client) SendStreamData(data *proto.Packet) error {
 	var (
 		m any = nil
 	)
@@ -146,17 +148,22 @@ func (n *RpcClient) SendStreamData(data *proto.Packet) error {
 }
 
 //gen new packet
-func (n *RpcClient) GenPacket() *proto.Packet {
+func (n *Client) GenPacket() *proto.Packet {
 	return &proto.Packet{}
 }
 
-//set call back for received stream data of outside
-func (n *RpcClient) SetStreamCallBack(cb func(*proto.Packet)bool) {
-	n.cb = cb
+//set callback for received stream data of outside
+func (n *Client) SetStreamCallBack(cb func(*proto.Packet)error) {
+	n.cbOfStream = cb
+}
+
+//set callback for server node down
+func (n *Client) SetServerNodeDownCallBack(cb func(string) error) {
+	n.cbOfNodeDown = cb
 }
 
 //check server connect
-func (n *RpcClient) CheckConn() bool {
+func (n *Client) CheckConn() bool {
 	return n.checkServerConn()
 }
 
@@ -165,13 +172,14 @@ func (n *RpcClient) CheckConn() bool {
 ////////////////
 
 //ping remote server
-func (n *RpcClient) ping(isReConn bool) error {
+func (n *Client) ping(isReConn bool) error {
 	var (
 		stream proto.PacketService_StreamReqClient
 		err error
 		isFailed bool
 		maxTryTimes int
 	)
+	//check
 	if isReConn {
 		if n.conn != nil {
 			n.conn.Close()
@@ -184,11 +192,11 @@ func (n *RpcClient) ping(isReConn bool) error {
 
 	//check and init rpc connect
 	if n.conn == nil {
-		//try connect remote server
-		conn, err := grpc.Dial(n.address, grpc.WithInsecure())
-		if err != nil {
+		//connect remote server
+		conn, subErr := grpc.Dial(n.address, grpc.WithInsecure())
+		if subErr != nil {
 			log.Printf("Can't pind %v, err:%v",  n.address, err.Error())
-			return err
+			return subErr
 		}
 
 		//set rpc client and connect
@@ -238,7 +246,7 @@ func (n *RpcClient) ping(isReConn bool) error {
 }
 
 //receive stream data from server
-func (n *RpcClient) receiveServerStream(
+func (n *Client) receiveServerStream(
 				stream proto.PacketService_StreamReqClient,
 			) {
 	var (
@@ -281,7 +289,7 @@ func (n *RpcClient) receiveServerStream(
 }
 
 //send data to remote server
-func (n *RpcClient) sendDataToServer(data *proto.Packet) error {
+func (n *Client) sendDataToServer(data *proto.Packet) error {
 	//check
 	if data == nil || n.stream == nil {
 		return errors.New("invalid parameter")
@@ -296,7 +304,7 @@ func (n *RpcClient) sendDataToServer(data *proto.Packet) error {
 }
 
 //check remote server status
-func (n *RpcClient) checkServerStatus() {
+func (n *Client) checkServerStatus() {
 	var (
 		needPing bool
 	)
@@ -309,6 +317,10 @@ func (n *RpcClient) checkServerStatus() {
 	}else{
 		state := n.conn.GetState().String()
 		if state == "TRANSIENT_FAILURE" || state == "SHUTDOWN" {
+			//node down
+			if n.cbOfNodeDown != nil {
+				n.cbOfNodeDown(n.address)
+			}
 			needPing = true
 		}
 	}
@@ -318,7 +330,7 @@ func (n *RpcClient) checkServerStatus() {
 }
 
 //check remote connect is lost or not
-func (n *RpcClient) checkServerConn() bool {
+func (n *Client) checkServerConn() bool {
 	state := n.conn.GetState().String()
 	if state == "TRANSIENT_FAILURE" || state == "SHUTDOWN" {
 		return false
@@ -327,9 +339,9 @@ func (n *RpcClient) checkServerConn() bool {
 }
 
 //ticker process
-func (n *RpcClient) tickerProcess() {
+func (n *Client) tickerProcess() {
 	var (
-		ticker = time.NewTicker(time.Second * define.NodeCheckRate)
+		ticker = time.NewTicker(define.NodeCheckRate)
 		m any = nil
 	)
 	defer func() {
@@ -357,7 +369,7 @@ func (n *RpcClient) tickerProcess() {
 
 //run main process
 //used for send and receiver stream data
-func (n *RpcClient) runMainProcess() {
+func (n *Client) runMainProcess() {
 	var (
 		data proto.Packet
 		isOk bool
@@ -385,8 +397,8 @@ func (n *RpcClient) runMainProcess() {
 		case data, isOk = <- n.receiveChan:
 			if isOk && &data != nil {
 				//run callback func to process received data
-				if n.cb != nil {
-					n.cb(&data)
+				if n.cbOfStream != nil {
+					n.cbOfStream(&data)
 				}
 			}
 		case <- n.closeChan:

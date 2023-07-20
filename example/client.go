@@ -20,7 +20,7 @@ const (
 )
 
 //send process
-func sendGenReqProcess(c *tinyrpc.RpcClient) {
+func sendGenReqProcess(c *tinyrpc.Client) {
 	var (
 		err error
 	)
@@ -47,7 +47,7 @@ func sendGenReqProcess(c *tinyrpc.RpcClient) {
 	}
 }
 
-func sendStreamReqProcess(c *tinyrpc.RpcClient) {
+func sendStreamReqProcess(c *tinyrpc.Client) {
 	var (
 		err error
 	)
@@ -71,9 +71,15 @@ func sendStreamReqProcess(c *tinyrpc.RpcClient) {
 }
 
 //set cb for stream data
-func cbForStreamData(pack *proto.Packet) bool {
+func cbForStreamData(pack *proto.Packet) error {
 	log.Printf("cbForStreamData, pack data:%v", pack.Data)
-	return true
+	return nil
+}
+
+//set cb for service node down
+func cbForServiceNodeDown(node string) error {
+	log.Printf("cbForServiceNodeDown, node:%v\n", node)
+	return nil
 }
 
 func main() {
@@ -83,7 +89,7 @@ func main() {
 
 	//init client
 	remoteAddr := fmt.Sprintf("%v:%v", DefaultRemoteHost, DefaultRemotePort)
-	c := tinyrpc.NewRpcClient(define.ModeOfRpcAll)
+	c := tinyrpc.NewClient(define.ModeOfRpcAll)
 	c.SetAddress(remoteAddr)
 	err := c.ConnectServer()
 	if err != nil {
@@ -96,6 +102,7 @@ func main() {
 
 	//set stream cb and run as stream mode
 	c.SetStreamCallBack(cbForStreamData)
+	c.SetServerNodeDownCallBack(cbForServiceNodeDown)
 	go sendStreamReqProcess(c)
 
 	//start send process

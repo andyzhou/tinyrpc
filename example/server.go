@@ -10,7 +10,7 @@ import (
 //example code for server
 
 //setup relate cb
-func cbForNodeDown(addr string) bool {
+func cbForClientNodeDown(addr string) bool {
 	log.Printf("cbForNodeDown, addr:%v", addr)
 	return true
 }
@@ -57,7 +57,7 @@ func main() {
 	s := tinyrpc.NewService()
 
 	//set relate cb
-	s.SetCBForClientNodeDown(cbForNodeDown)
+	s.SetCBForClientNodeDown(cbForClientNodeDown)
 	s.SetCBForGeneral(cbForGenReq)
 	s.SetCBForStream(cbForStreamReq)
 
