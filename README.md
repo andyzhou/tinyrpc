@@ -1,7 +1,7 @@
 # about
 This is a gen rpc library, support service and client mode, base on grpc, use default port 7100.
 
-#3rd depend
+# 3rd depend
 - need go v1.8 or high version.
 
 # future
