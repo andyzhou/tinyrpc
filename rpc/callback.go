@@ -21,9 +21,9 @@ import (
 //callback face
 type CallBack struct {
 	//callback for service from outside
-	streamCB func(string,[]byte)error //cb for stream data`
+	streamCB func(string,*proto.Packet)error //cb for stream data`
 	//callback for service from outside
-	generalCB func(string,[]byte)([]byte, error) //cb for general data` //input/return packet data
+	generalCB func(string,*proto.Packet)(*proto.Packet, error) //cb for general data` //input/return packet data
 	nodeFace *Node                            //node interface from outside`
 	sync.RWMutex
 }
@@ -37,12 +37,12 @@ func NewCallBack(nodeFace *Node) *CallBack {
 }
 
 //set callback for stream request
-func (r *CallBack) SetCBForStream(cb func(string,[]byte)error) {
+func (r *CallBack) SetCBForStream(cb func(string,*proto.Packet)error) {
 	r.streamCB = cb
 }
 
 //set callback for general request
-func (r *CallBack) SetCBForGen(cb func(string,[]byte)([]byte, error)) {
+func (r *CallBack) SetCBForGen(cb func(string,*proto.Packet)(*proto.Packet, error)) {
 	r.generalCB = cb
 }
 
@@ -105,7 +105,7 @@ func (r *CallBack) StreamReq(
 				//received real packet data from client, process it.
 				//run callback of outside rpc server
 				if r.streamCB != nil {
-					r.streamCB(remoteAddr, in.Data)
+					r.streamCB(remoteAddr, in)
 				}
 			}
 		}
@@ -144,14 +144,13 @@ func (r *CallBack) SendReq(
 	}
 
 	//call general callback
-	packetData, err := r.generalCB(remoteAddr, in.Data)
+	out, err := r.generalCB(remoteAddr, in)
 	if err != nil {
-		in.ErrCode = define.ErrCodeOfRunError
-		in.ErrMsg = err.Error()
+		out.ErrCode = define.ErrCodeOfRunError
+		out.ErrMsg = err.Error()
 		return in, err
 	}
 	//format response
-	in.ErrCode = define.ErrCodeOfSucceed
-	in.Data = packetData
-	return in, nil
+	out.ErrCode = define.ErrCodeOfSucceed
+	return out, nil
 }

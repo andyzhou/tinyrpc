@@ -103,13 +103,13 @@ func (r *Service) SendStreamData(
 
 //set callback for stream request (STEP2-1)
 func (r *Service) SetCBForStream(
-			cb func(addr string, data[]byte)error) {
+			cb func(addr string, in *proto.Packet)error) {
 	r.rpcCB.SetCBForStream(cb)
 }
 
 //set callback for general request (STEP2-2)
 func (r *Service) SetCBForGeneral(
-			cb func(addr string, data[]byte)([]byte, error)) {
+			cb func(addr string, in *proto.Packet)(*proto.Packet, error)) {
 	r.rpcCB.SetCBForGen(cb)
 }
 

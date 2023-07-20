@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/andyzhou/tinyrpc"
+	"github.com/andyzhou/tinyrpc/proto"
 	"log"
 	"sync"
 	"time"
@@ -14,12 +15,12 @@ func cbForClientNodeDown(addr string) bool {
 	log.Printf("cbForNodeDown, addr:%v", addr)
 	return true
 }
-func cbForGenReq(addr string, data []byte) ([]byte, error) {
-	log.Printf("cbForGenReq, addr:%v, data:%v", addr, data)
-	return data, nil
+func cbForGenReq(addr string, in *proto.Packet) (*proto.Packet, error) {
+	log.Printf("cbForGenReq, addr:%v, in:%v", addr, in)
+	return in, nil
 }
-func cbForStreamReq(addr string, data []byte) error {
-	log.Printf("cbForStreamReq, addr:%v, data:%v", addr, data)
+func cbForStreamReq(addr string, in *proto.Packet) error {
+	log.Printf("cbForStreamReq, addr:%v, in:%v", addr, in)
 	return nil
 }
 
