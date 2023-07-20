@@ -18,13 +18,13 @@ func cbForGenReq(addr string, data []byte) ([]byte, error) {
 	log.Printf("cbForGenReq, addr:%v, data:%v", addr, data)
 	return data, nil
 }
-func cbForStreamReq(addr string, data []byte) bool {
+func cbForStreamReq(addr string, data []byte) error {
 	log.Printf("cbForStreamReq, addr:%v, data:%v", addr, data)
-	return true
+	return nil
 }
 
 //send stream data
-func sendStreamData(s *tinyrpc.RpcService) {
+func sendStreamData(s *tinyrpc.Service) {
 	//format data
 	in := s.GenPacket()
 	in.MessageId = 2
@@ -32,7 +32,7 @@ func sendStreamData(s *tinyrpc.RpcService) {
 
 	//send to all
 	for {
-		err := s.SendStreamToAll(in)
+		err := s.SendStreamData(in)
 		log.Printf("server.sendStreamData, err:%v", err)
 		time.Sleep(time.Second * 3)
 	}
@@ -41,11 +41,12 @@ func sendStreamData(s *tinyrpc.RpcService) {
 func main() {
 	var (
 		wg sync.WaitGroup
+		m any = nil
 	)
 
 	//defer
 	defer func() {
-		if err := recover(); err != nil {
+		if err := recover(); err != m {
 			log.Printf("server panic, err:%v", err)
 		}
 		wg.Done()
@@ -53,7 +54,7 @@ func main() {
 	}()
 
 	//init server
-	s := tinyrpc.NewRpcService()
+	s := tinyrpc.NewService()
 
 	//set relate cb
 	s.SetCBForClientNodeDown(cbForNodeDown)

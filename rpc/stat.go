@@ -18,18 +18,18 @@ import (
 type connCtxKey struct{}
 
 //stat face
-type RpcStat struct {
-	nodeFace *RpcNode
+type Stat struct {
+	nodeFace *Node
 	connMap map[*stats.ConnTagInfo]string
 	sync.RWMutex
 }
 
 //declare global variable
-var RunRpcStat *RpcStat
+var RunStat *Stat
 
 //construct
-func NewRpcStat(nodeFace *RpcNode) *RpcStat {
-	this := &RpcStat{
+func NewStat(nodeFace *Node) *Stat {
+	this := &Stat{
 		nodeFace:nodeFace,
 		connMap: map[*stats.ConnTagInfo]string{},
 	}
@@ -37,32 +37,32 @@ func NewRpcStat(nodeFace *RpcNode) *RpcStat {
 }
 
 //quit
-func (h *RpcStat) Quit() {
+func (h *Stat) Quit() {
 	h.Lock()
 	defer h.Unlock()
 	h.connMap = map[*stats.ConnTagInfo]string{}
 }
 
 //get connect tag
-func (h *RpcStat) GetConnTagFromContext(ctx context.Context) (*stats.ConnTagInfo, bool) {
+func (h *Stat) GetConnTagFromContext(ctx context.Context) (*stats.ConnTagInfo, bool) {
 	tag, ok := ctx.Value(connCtxKey{}).(*stats.ConnTagInfo)
 	return tag, ok
 }
 
 //cb for rpc api
-func (h *RpcStat) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
+func (h *Stat) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
 	log.Printf("TagConn, from address:%v\n", info.RemoteAddr)
 	return context.WithValue(ctx, connCtxKey{}, info)
 }
 
 //cb for rpc api
-func (h *RpcStat) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context {
+func (h *Stat) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Context {
 	//log.Printf("TagRPC, method name:%v\n", info.FullMethodName)
 	return ctx
 }
 
 //cb for rpc api
-func (h *RpcStat) HandleConn(ctx context.Context, s stats.ConnStats) {
+func (h *Stat) HandleConn(ctx context.Context, s stats.ConnStats) {
 	//get tag current ctx
 	h.Lock()
 	defer h.Unlock()
@@ -94,6 +94,6 @@ func (h *RpcStat) HandleConn(ctx context.Context, s stats.ConnStats) {
 }
 
 //cb for rpc api
-func (h *RpcStat) HandleRPC(ctx context.Context, s stats.RPCStats) {
+func (h *Stat) HandleRPC(ctx context.Context, s stats.RPCStats) {
 	//fmt.Println("HandleRPC, IsClient:", s.IsClient())
 }

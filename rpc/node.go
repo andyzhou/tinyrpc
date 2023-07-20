@@ -16,29 +16,29 @@ import (
  */
 
 //node face
-type RpcNode struct {
+type Node struct {
 	remoteStreams map[string]proto.PacketService_StreamReqServer //`remoteAddr -> stream`
 	cbForNodeDown func(remoteAddr string) bool
 	sync.RWMutex
 }
 
 //construct
-func NewRpcNode() *RpcNode {
-	this := &RpcNode{
+func NewNode() *Node {
+	this := &Node{
 		remoteStreams: map[string]proto.PacketService_StreamReqServer{},
 	}
 	return this
 }
 
 //quit
-func (r *RpcNode) Quit() {
+func (r *Node) Quit() {
 	r.Lock()
 	defer r.Unlock()
 	r.remoteStreams = map[string]proto.PacketService_StreamReqServer{}
 }
 
 //cast packet to streams nodes
-func (r *RpcNode) CastToNodes(
+func (r *Node) CastToNodes(
 				packet *proto.Packet,
 				nodes ...string,
 			) error {
@@ -83,19 +83,19 @@ func (r *RpcNode) CastToNodes(
 }
 
 //clean up
-func (r *RpcNode) CleanUp() {
+func (r *Node) CleanUp() {
 	r.Lock()
 	defer r.Unlock()
 	r.remoteStreams = map[string]proto.PacketService_StreamReqServer{}
 }
 
 //get all streams
-func (r *RpcNode) GetAllStreams() map[string]proto.PacketService_StreamReqServer {
+func (r *Node) GetAllStreams() map[string]proto.PacketService_StreamReqServer {
 	return r.remoteStreams
 }
 
 //remove stream
-func (r *RpcNode) RemoveStream(remoteAddr string) bool {
+func (r *Node) RemoveStream(remoteAddr string) bool {
 	//check
 	if remoteAddr == "" {
 		return false
@@ -108,7 +108,7 @@ func (r *RpcNode) RemoveStream(remoteAddr string) bool {
 }
 
 //get stream
-func (r *RpcNode) GetStream(
+func (r *Node) GetStream(
 				remoteAddr string,
 			) (proto.PacketService_StreamReqServer, error) {
 	//check
@@ -129,7 +129,7 @@ func (r *RpcNode) GetStream(
 }
 
 //check or add remote client stream info
-func (r *RpcNode) AddStream(
+func (r *Node) AddStream(
 				remoteAddr string,
 				stream proto.PacketService_StreamReqServer,
 			) error {
@@ -149,7 +149,7 @@ func (r *RpcNode) AddStream(
 }
 
 //set callback for node down
-func (r *RpcNode) SetCBForNodeDown(cb func(remoteAddr string) bool) bool {
+func (r *Node) SetCBForNodeDown(cb func(remoteAddr string) bool) bool {
 	if cb == nil {
 		return false
 	}

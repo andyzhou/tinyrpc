@@ -1,9 +1,12 @@
 syntax="proto3";
-package rpc;
-option go_package = "github.com/andyzhou/tinyrpc";
-option java_package = "com.tc.rpc";
+package tinyrpc;
+option go_package = "proto";
+option java_package = "com.tc.tinyrpc";
 
+//////////////////
 //message for packet
+//////////////////
+
 message Packet {
 	int32 kind = 1; //1:request 2:response
 	int32 messageId = 2; //message id
@@ -12,11 +15,14 @@ message Packet {
 	string errMsg = 5; //optional
 }
 
+//////////////////
 //define service
+//////////////////
+
 service PacketService {
-    //packet request, use stream mode
+    //packet request for stream mode
     rpc StreamReq(stream Packet) returns (stream Packet);
 
-	//generate request
+	//general request
 	rpc SendReq(Packet) returns (Packet);
 }

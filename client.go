@@ -24,14 +24,14 @@ import (
 
 //rpc client face
 type RpcClient struct {
-	address string `node remote address`
-	mode int `rpc mode`
-	cb func(packet *proto.Packet)bool `call back for received stream data of outside`
-	conn *grpc.ClientConn `rpc connect`
-	client proto.PacketServiceClient `service client`
-	stream proto.PacketService_StreamReqClient `stream packet client`
-	receiveChan chan proto.Packet `packet chan for receive outside`
-	sendChan chan proto.Packet `packet chan for send`
+	address string //node remote address
+	mode int //rpc mode`
+	cb func(packet *proto.Packet)bool //call back for received stream data of outside
+	conn *grpc.ClientConn //rpc connect
+	client proto.PacketServiceClient //service client
+	stream proto.PacketService_StreamReqClient //stream packet client
+	receiveChan chan proto.Packet //packet chan for receive outside
+	sendChan chan proto.Packet //packet chan for send
 	receiveCloseChan chan struct{}
 	closeChan chan struct{}
 	hasRun bool
@@ -79,7 +79,7 @@ func (n *RpcClient) SetAddress(address string) error{
 	return nil
 }
 
-//try connect server
+//connect server
 func (n *RpcClient) ConnectServer() error {
 	//check
 	if n.address == "" {
@@ -106,13 +106,6 @@ func (n *RpcClient) SendRequest(req *proto.Packet) (*proto.Packet, error) {
 		return nil, errors.New("invalid parameter")
 	}
 
-	//try catch panic
-	defer func() {
-		if err := recover(); err != nil {
-			log.Printf("RpcClient::SendRequest panic happened, err:%v", err)
-		}
-	}()
-
 	//check connect lost or not
 	bRet := n.checkServerConn()
 	if !bRet {
@@ -127,14 +120,20 @@ func (n *RpcClient) SendRequest(req *proto.Packet) (*proto.Packet, error) {
 //send stream data to remote server
 //async mode
 func (n *RpcClient) SendStreamData(data *proto.Packet) error {
+	var (
+		m any = nil
+	)
 	//check
 	if data == nil {
 		return errors.New("invalid parameter")
 	}
+	if n.sendChan == nil {
+		return errors.New("inter send chan is nil")
+	}
 
 	//try catch panic
 	defer func() {
-		if err := recover(); err != nil {
+		if err := recover(); err != m {
 			log.Printf("RpcClient::SendData, panic happened, err:%v", err)
 		}
 	}()
@@ -246,11 +245,12 @@ func (n *RpcClient) receiveServerStream(
 		in *proto.Packet
 		isOk bool
 		err error
+		m any = nil
 	)
 
 	//try catch panic
 	defer func() {
-		if err := recover(); err != nil {
+		if subErr := recover(); subErr != m {
 			log.Printf("RpcClient::receiveServerStream, panic happened, err:%v", err)
 		}
 	}()
@@ -330,9 +330,10 @@ func (n *RpcClient) checkServerConn() bool {
 func (n *RpcClient) tickerProcess() {
 	var (
 		ticker = time.NewTicker(time.Second * define.NodeCheckRate)
+		m any = nil
 	)
 	defer func() {
-		if err := recover(); err != nil {
+		if err := recover(); err != m {
 			log.Printf("RpcClient::tickerProcess panic, err:%v", err)
 		}
 		//stop ticker
@@ -360,9 +361,10 @@ func (n *RpcClient) runMainProcess() {
 	var (
 		data proto.Packet
 		isOk bool
+		m any = nil
 	)
 	defer func() {
-		if err := recover(); err != nil {
+		if err := recover(); err != m {
 			log.Printf("RpcClient::runMainProcess panic, err:%v", err)
 		}
 		//close relate chan
@@ -377,11 +379,11 @@ func (n *RpcClient) runMainProcess() {
 		select {
 		case data, isOk = <- n.sendChan:
 			if isOk {
-				//try send to remote server
+				//send to remote server
 				n.sendDataToServer(&data)
 			}
 		case data, isOk = <- n.receiveChan:
-			if isOk {
+			if isOk && &data != nil {
 				//run callback func to process received data
 				if n.cb != nil {
 					n.cb(&data)

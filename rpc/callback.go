@@ -19,47 +19,48 @@ import (
  */
 
 //callback face
-type RpcCallBack struct {
+type CallBack struct {
 	//callback for service from outside
-	streamCB func(string,[]byte)bool `cb for stream data`
+	streamCB func(string,[]byte)error //cb for stream data`
 	//callback for service from outside
-	generalCB func(string,[]byte)([]byte, error) `cb for general data` //input/return packet data
-	nodeFace *RpcNode                            `node interface from outside`
+	generalCB func(string,[]byte)([]byte, error) //cb for general data` //input/return packet data
+	nodeFace *Node                            //node interface from outside`
 	sync.RWMutex
 }
 
 //construct
-func NewRpcCallBack(nodeFace *RpcNode) *RpcCallBack {
-	this := &RpcCallBack{
+func NewCallBack(nodeFace *Node) *CallBack {
+	this := &CallBack{
 		nodeFace:nodeFace,
 	}
 	return this
 }
 
 //set callback for stream request
-func (r *RpcCallBack) SetCBForStream(cb func(string,[]byte)bool) {
+func (r *CallBack) SetCBForStream(cb func(string,[]byte)error) {
 	r.streamCB = cb
 }
 
 //set callback for general request
-func (r *RpcCallBack) SetCBForGen(cb func(string,[]byte)([]byte, error)) {
+func (r *CallBack) SetCBForGen(cb func(string,[]byte)([]byte, error)) {
 	r.generalCB = cb
 }
 
 //receive stream data from client
-func (r *RpcCallBack) StreamReq(
+func (r *CallBack) StreamReq(
 				stream proto.PacketService_StreamReqServer,
 			) error {
 	var (
 		in *proto.Packet
 		err error
+		m any = nil
 	)
 
 	//get context
 	ctx := stream.Context()
 
 	//get tag by stream
-	tag, ok := RunRpcStat.GetConnTagFromContext(ctx)
+	tag, ok := RunStat.GetConnTagFromContext(ctx)
 	if !ok {
 		err = fmt.Errorf("StreamReq, can't get tag from node stream")
 		log.Println(err)
@@ -75,7 +76,7 @@ func (r *RpcCallBack) StreamReq(
 
 	//defer
 	defer func() {
-		if err := recover(); err != nil {
+		if subErr := recover(); subErr != m {
 			log.Printf("service.RpcCallBack:StreamReq panic, err:%v\n", err)
 		}
 	}()
@@ -113,7 +114,7 @@ func (r *RpcCallBack) StreamReq(
 }
 
 //receive general request from client
-func (r *RpcCallBack) SendReq(
+func (r *CallBack) SendReq(
 				ctx context.Context,
 				in *proto.Packet,
 			) (*proto.Packet, error) {
@@ -137,7 +138,7 @@ func (r *RpcCallBack) SendReq(
 
 	//run callback of outside to process general data
 	//get tag by ctx
-	tag, ok := RunRpcStat.GetConnTagFromContext(ctx)
+	tag, ok := RunStat.GetConnTagFromContext(ctx)
 	if ok {
 		remoteAddr = tag.RemoteAddr.String()
 	}

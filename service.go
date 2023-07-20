@@ -20,35 +20,33 @@ import (
  */
 
 //rpc service face
-type RpcService struct {
-	port int `rpc port`
-	address string `rpc service address`
-	listener net.Listener `tcp listener`
+type Service struct {
+	port int //rpc port
+	address string //rpc service address
+	listener net.Listener //tcp listener
 	service *grpc.Server
-	rpcStat *rpc.RpcStat   `inter rpc stat`
-	rpcCB *rpc.RpcCallBack `inter rpc service callback`
-	rpcNode *rpc.RpcNode   `inter rpc node`
+	rpcStat *rpc.Stat   //inter rpc stat
+	rpcCB *rpc.CallBack //inter rpc service callback
+	rpcNode *rpc.Node   //inter rpc node
+	started bool
 	sync.RWMutex
 }
 
 //construct (STEP1)
-func NewRpcService(ports ...int) *RpcService {
-	//set port
+func NewService() *Service {
+	//set default port
 	port := define.DefaultRpcPort
-	if ports != nil && len(ports) > 0 {
-		port = ports[0]
-	}
 
 	//init rpc nodes
-	rpcNode := rpc.NewRpcNode()
+	rpcNode := rpc.NewNode()
 
 	//self init
-	this := &RpcService{
+	this := &Service{
 		port:    port,
 		address: fmt.Sprintf(":%d", port),
 		rpcNode: rpcNode,
-		rpcStat: rpc.NewRpcStat(rpcNode),
-		rpcCB:   rpc.NewRpcCallBack(rpcNode),
+		rpcStat: rpc.NewStat(rpcNode),
+		rpcCB:   rpc.NewCallBack(rpcNode),
 	}
 	//inter init
 	this.interInit()
@@ -56,7 +54,7 @@ func NewRpcService(ports ...int) *RpcService {
 }
 
 //quit
-func (r *RpcService) Quit() {
+func (r *Service) Quit() {
 	if r.service != nil {
 		r.service.Stop()
 	}
@@ -69,78 +67,107 @@ func (r *RpcService) Quit() {
 }
 
 //send stream data to remote client
-func (r *RpcService) SendStreamToClient(
-				remoteAddr string,
+func (r *Service) SendStreamData(
 				in *proto.Packet,
+				remoteAddress ...string,
 			) error {
-	//check
-	if remoteAddr == "" || in == nil {
-		return errors.New("invalid parameter")
-	}
-
-	//get client stream
-	stream, err := r.rpcNode.GetStream(remoteAddr)
-	if err != nil {
-		return err
-	}
-
-	//send to client
-	err = stream.SendMsg(in)
-	return err
-}
-
-//send stream data to all remote client
-func (r *RpcService) SendStreamToAll(
-				in *proto.Packet,
-			) error {
+	var (
+		err error
+	)
 	//check
 	if in == nil {
 		return errors.New("invalid parameter")
 	}
-	err := r.rpcNode.CastToNodes(in)
+
+	//has remote address
+	if remoteAddress != nil && len(remoteAddress) > 0 {
+		//loop process
+		for _, remoteAddr := range remoteAddress {
+			//get client stream
+			stream, subErr := r.rpcNode.GetStream(remoteAddr)
+			if subErr != nil {
+				return subErr
+			}
+			//send to client
+			subErr = stream.SendMsg(in)
+			if subErr != nil {
+				return subErr
+			}
+		}
+	}else{
+		//cast to all nodes
+		err = r.rpcNode.CastToNodes(in)
+	}
 	return err
 }
 
-//get port
-func (r *RpcService) GetPort() int {
-	return r.port
-}
-
-//gen new packet
-func (r *RpcService) GenPacket() *proto.Packet {
-	return &proto.Packet{}
-}
-
 //set callback for stream request (STEP2-1)
-func (r *RpcService) SetCBForStream(cb func(addr string, data[]byte)bool) {
+func (r *Service) SetCBForStream(
+			cb func(addr string, data[]byte)error) {
 	r.rpcCB.SetCBForStream(cb)
 }
 
 //set callback for general request (STEP2-2)
-func (r *RpcService) SetCBForGeneral(cb func(addr string, data[]byte)([]byte, error)) {
+func (r *Service) SetCBForGeneral(
+			cb func(addr string, data[]byte)([]byte, error)) {
 	r.rpcCB.SetCBForGen(cb)
 }
 
 //set callback for node down (STEP2-3)
-func (r *RpcService) SetCBForClientNodeDown(cb func(remoteAddr string) bool) bool {
+func (r *Service) SetCBForClientNodeDown(
+			cb func(remoteAddr string) bool) bool {
 	return r.rpcNode.SetCBForNodeDown(cb)
 }
 
 //begin service (STEP3)
-func (r *RpcService) Start() {
+func (r *Service) Start(ports ...int) error {
+	//check and set port
+	if ports != nil && len(ports) > 0 {
+		r.port = ports[0]
+	}
+	if r.port <= 0 {
+		return errors.New("service port must exceed 0")
+	}
+	if r.started {
+		return errors.New("service had started")
+	}
+
+	//set address
+	r.address = fmt.Sprintf(":%d", r.port)
+
+	//try listen tcp port
+	listen, err := net.Listen("tcp", r.address)
+	if err != nil {
+		return err
+	}
+	//sync listener
+	r.listener = listen
+	r.started = true
+
 	//begin rpc service
 	sf := func(listen net.Listener) {
-		err := r.service.Serve(listen)
+		err = r.service.Serve(listen)
 		if err != nil {
-			panic(err)
+			panic(any(err))
 		}
 	}
 	go sf(r.listener)
+	return err
+}
+
+//get port
+func (r *Service) GetPort() int {
+	return r.port
 }
 
 //get node face
-func (r *RpcService) GetNode() *rpc.RpcNode {
+func (r *Service) GetNode() *rpc.Node {
 	return r.rpcNode
+}
+
+//gen new packet
+func (r *Service) GenPacket() *proto.Packet {
+	return &proto.Packet{}
 }
 
 ////////////////
@@ -148,14 +175,7 @@ func (r *RpcService) GetNode() *rpc.RpcNode {
 ///////////////
 
 //inter init
-func (r *RpcService) interInit() {
-	//try listen tcp port
-	listen, err := net.Listen("tcp", r.address)
-	if err != nil {
-		panic(err)
-	}
-	r.listener = listen
-
+func (r *Service) interInit() {
 	//create rpc server with rpc stat support
 	r.service = grpc.NewServer(grpc.StatsHandler(r.rpcStat))
 
