@@ -150,7 +150,5 @@ func (r *CallBack) SendReq(
 		out.ErrMsg = err.Error()
 		return in, err
 	}
-	//format response
-	out.ErrCode = define.ErrCodeOfSucceed
 	return out, nil
 }
