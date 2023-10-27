@@ -67,7 +67,7 @@ func (h *Stat) HandleConn(ctx context.Context, s stats.ConnStats) {
 	h.Lock()
 	defer h.Unlock()
 	tag, ok := h.GetConnTagFromContext(ctx)
-	if !ok {
+	if !ok || tag == nil {
 		log.Printf("can not get conn tag\n")
 		return
 	}

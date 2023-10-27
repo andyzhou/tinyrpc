@@ -19,6 +19,12 @@ import (
  * support general and stream mode
  */
 
+//global variable
+var (
+	_service *Service
+	_serviceOnce sync.Once
+)
+
 //rpc service face
 type Service struct {
 	port int //rpc port
@@ -30,6 +36,14 @@ type Service struct {
 	rpcNode *rpc.Node   //inter rpc node
 	started bool
 	sync.RWMutex
+}
+
+//get single instance
+func GetService() *Service {
+	_serviceOnce.Do(func() {
+		_service = NewService()
+	})
+	return _service
 }
 
 //construct (STEP1)
@@ -120,6 +134,7 @@ func (r *Service) SetCBForClientNodeDown(
 }
 
 //begin service (STEP3)
+//support assigned rpc service port
 func (r *Service) Start(ports ...int) error {
 	//check and set port
 	if ports != nil && len(ports) > 0 {
@@ -140,6 +155,7 @@ func (r *Service) Start(ports ...int) error {
 	if err != nil {
 		return err
 	}
+
 	//sync listener
 	r.listener = listen
 	r.started = true

@@ -48,6 +48,9 @@ func NewClient(modes ...int) *Client {
 	if modes != nil && len(modes) > 0 {
 		mode = modes[0]
 	}
+	if mode > define.ModeOfRpcAll || mode < define.ModeOfRpcGen {
+		mode = define.ModeOfRpcAll
+	}
 
 	//self init
 	this := &Client{
@@ -70,6 +73,15 @@ func (n *Client) Quit() {
 	if n.closeChan != nil {
 		close(n.closeChan)
 	}
+}
+
+//set mode
+func (n *Client) SetMode(mode int) error {
+	if mode > define.ModeOfRpcAll || mode < define.ModeOfRpcGen {
+		return errors.New("invalid mode")
+	}
+	n.mode = mode
+	return nil
 }
 
 //set address
@@ -167,19 +179,28 @@ func (n *Client) CheckConn() bool {
 	return n.checkServerConn()
 }
 
+//ping remote server
+func (n *Client) Ping(isReConn ...bool) error {
+	return n.ping(isReConn...)
+}
+
 /////////////////
 //private func
 ////////////////
 
 //ping remote server
-func (n *Client) ping(isReConn bool) error {
+func (n *Client) ping(isReConnects... bool) error {
 	var (
 		stream proto.PacketService_StreamReqClient
 		err error
 		isFailed bool
 		maxTryTimes int
+		isReConn bool
 	)
 	//check
+	if isReConnects != nil && len(isReConnects) > 0 {
+		isReConn = isReConnects[0]
+	}
 	if isReConn {
 		if n.conn != nil {
 			n.conn.Close()

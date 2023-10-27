@@ -72,8 +72,8 @@ func (r *Node) CastToNodes(
 	}
 
 	//send to all
-	for node, stream := range r.remoteStreams {
-		err = stream.Send(packet)
+	for node, subStream := range r.remoteStreams {
+		err = subStream.Send(packet)
 		if err != nil {
 			log.Printf("RpcNode::CastToNodes, send to %v failed, err:%v\n",
 				node, err.Error())
@@ -91,6 +91,8 @@ func (r *Node) CleanUp() {
 
 //get all streams
 func (r *Node) GetAllStreams() map[string]proto.PacketService_StreamReqServer {
+	r.Lock()
+	defer r.Unlock()
 	return r.remoteStreams
 }
 
