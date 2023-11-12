@@ -20,11 +20,11 @@ import (
 
 //callback face
 type CallBack struct {
-	//callback for service from outside
-	streamCB func(string,*proto.Packet)error //cb for stream data`
-	//callback for service from outside
-	generalCB func(string,*proto.Packet)(*proto.Packet, error) //cb for general data` //input/return packet data
-	nodeFace *Node                            //node interface from outside`
+	//cb for stream data
+	streamCB func(string,*proto.Packet) error
+	//cb for general data
+	generalCB func(string,*proto.Packet)(*proto.Packet, error)
+	nodeFace *Node //nodes
 	sync.RWMutex
 }
 

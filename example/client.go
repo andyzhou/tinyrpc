@@ -32,6 +32,7 @@ func sendGenReqProcess(c *tinyrpc.Client) {
 
 	//init request packet
 	req := c.GenPacket()
+	req.Module = "test"
 	req.MessageId = 1
 	req.Data = make([]byte, 0)
 

@@ -9,10 +9,12 @@ option java_package = "com.tc.tinyrpc";
 
 message Packet {
 	int32 kind = 1; //1:request 2:response
-	int32 messageId = 2; //message id
-	bytes data = 3; //byte data
-	int32 errCode = 4; //optional
-	string errMsg = 5; //optional
+	string module = 2; //module
+	string act = 3; //action
+	int32 messageId = 4; //message id
+	bytes data = 5; //byte data
+	int32 errCode = 6; //optional
+	string errMsg = 7; //optional
 }
 
 //////////////////
