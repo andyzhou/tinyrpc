@@ -15,6 +15,7 @@ message Packet {
 	bytes data = 5; //byte data
 	int32 errCode = 6; //optional
 	string errMsg = 7; //optional
+	bool isCast = 8; //cast opt
 }
 
 //////////////////
