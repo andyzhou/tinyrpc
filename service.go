@@ -25,9 +25,15 @@ var (
 	_serviceOnce sync.Once
 )
 
+//service para
+type ServicePara struct {
+	Port int //rpc port
+	MaxMsgSize int //max message size, default 4MB
+}
+
 //rpc service face
 type Service struct {
-	port int //rpc port
+	para *ServicePara //rpc service para
 	address string //rpc service address
 	listener net.Listener //tcp listener
 	service *grpc.Server
@@ -39,25 +45,42 @@ type Service struct {
 }
 
 //get single instance
-func GetService() *Service {
+func GetService(paras ...*ServicePara) *Service {
 	_serviceOnce.Do(func() {
-		_service = NewService()
+		_service = NewService(paras...)
 	})
 	return _service
 }
 
 //construct (STEP1)
-func NewService() *Service {
+func NewService(paras ...*ServicePara) *Service {
+	var (
+		para *ServicePara
+	)
+
+	//detect
+	if paras != nil && len(paras) > 0 {
+		para = paras[0]
+	}else{
+		//init default para
+		para = &ServicePara{
+			Port: define.DefaultRpcPort,
+			MaxMsgSize: 1024 * 1024 * 4, //4MB
+		}
+	}
+
 	//set default port
-	port := define.DefaultRpcPort
+	if para.Port <= 0 {
+		para.Port = define.DefaultRpcPort
+	}
 
 	//init rpc nodes
 	rpcNode := rpc.NewNode()
 
 	//self init
 	this := &Service{
-		port:    port,
-		address: fmt.Sprintf(":%d", port),
+		para: para,
+		address: fmt.Sprintf(":%d", para.Port),
 		rpcNode: rpcNode,
 		rpcStat: rpc.NewStat(rpcNode),
 		rpcCB:   rpc.NewCallBack(rpcNode),
@@ -136,19 +159,22 @@ func (r *Service) SetCBForClientNodeDown(
 //begin service (STEP3)
 //support assigned rpc service port
 func (r *Service) Start(ports ...int) error {
+	var (
+		port int
+	)
 	//check and set port
 	if ports != nil && len(ports) > 0 {
-		r.port = ports[0]
+		port = ports[0]
 	}
-	if r.port <= 0 {
-		return errors.New("service port must exceed 0")
+	if port > 0 {
+		r.para.Port = port
 	}
 	if r.started {
 		return errors.New("service had started")
 	}
 
-	//set address
-	r.address = fmt.Sprintf(":%d", r.port)
+	//re-set address
+	r.address = fmt.Sprintf(":%d", r.para.Port)
 
 	//try listen tcp port
 	listen, err := net.Listen("tcp", r.address)
@@ -173,7 +199,7 @@ func (r *Service) Start(ports ...int) error {
 
 //get port
 func (r *Service) GetPort() int {
-	return r.port
+	return r.para.Port
 }
 
 //get node face
@@ -192,8 +218,12 @@ func (r *Service) GenPacket() *proto.Packet {
 
 //inter init
 func (r *Service) interInit() {
-	//create rpc server with rpc stat support
-	r.service = grpc.NewServer(grpc.StatsHandler(r.rpcStat))
+	//create rpc server with max msg size and rpc stat support
+	r.service = grpc.NewServer(
+			grpc.MaxSendMsgSize(r.para.MaxMsgSize), //max send size
+			grpc.MaxRecvMsgSize(r.para.MaxMsgSize), //max receive size
+			grpc.StatsHandler(r.rpcStat), //rpc stat
+		)
 
 	//register call back
 	proto.RegisterPacketServiceServer(r.service, r.rpcCB)

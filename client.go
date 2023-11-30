@@ -22,9 +22,15 @@ import (
  * - one node, one client
  */
 
+//rpc client para
+type ClientPara struct {
+	Mode int //ModeOfRpcGen, ModeOfRpcStream, ModeOfRpcAll
+	MaxMsgSize int //default 4MB
+}
+
 //rpc client face
 type Client struct {
-	mode int //rpc mode`
+	para *ClientPara //rpc client para
 	address string //node remote address
 	conn *grpc.ClientConn //rpc connect
 	client proto.PacketServiceClient //service client
@@ -42,19 +48,29 @@ type Client struct {
 }
 
 //construct
-func NewClient(modes ...int) *Client {
-	//set default mode
-	mode := define.ModeOfRpcAll
-	if modes != nil && len(modes) > 0 {
-		mode = modes[0]
+func NewClient(paras ...*ClientPara) *Client {
+	var (
+		para *ClientPara
+	)
+
+	//detect para
+	if paras != nil && len(paras) > 0 {
+		para = paras[0]
+	}else{
+		para = &ClientPara{
+			Mode: define.ModeOfRpcAll,
+			MaxMsgSize: 1024 * 1024 * 4, //4MB
+		}
 	}
-	if mode > define.ModeOfRpcAll || mode < define.ModeOfRpcGen {
-		mode = define.ModeOfRpcAll
+
+	//set default mode
+	if para.Mode > define.ModeOfRpcAll || para.Mode < define.ModeOfRpcGen {
+		para.Mode = define.ModeOfRpcAll
 	}
 
 	//self init
 	this := &Client{
-		mode: mode,
+		para: para,
 		sendChan:make(chan proto.Packet, define.NodeDataChanSize),
 		receiveChan:make(chan proto.Packet, define.NodeDataChanSize),
 		receiveCloseChan:make(chan struct{}, 1),
@@ -75,12 +91,21 @@ func (n *Client) Quit() {
 	}
 }
 
+//set message max size
+func (n *Client) SetMsgMaxSize(size int) error {
+	if size <= 0 {
+		return errors.New("invalid size")
+	}
+	n.para.MaxMsgSize = size
+	return nil
+}
+
 //set mode
 func (n *Client) SetMode(mode int) error {
 	if mode > define.ModeOfRpcAll || mode < define.ModeOfRpcGen {
 		return errors.New("invalid mode")
 	}
-	n.mode = mode
+	n.para.Mode= mode
 	return nil
 }
 
@@ -214,7 +239,14 @@ func (n *Client) ping(isReConnects... bool) error {
 	//check and init rpc connect
 	if n.conn == nil {
 		//connect remote server
-		conn, subErr := grpc.Dial(n.address, grpc.WithInsecure())
+		conn, subErr := grpc.Dial(
+					n.address,
+					grpc.WithInsecure(),
+					grpc.WithDefaultCallOptions(
+						grpc.MaxCallSendMsgSize(n.para.MaxMsgSize),
+						grpc.MaxCallRecvMsgSize(n.para.MaxMsgSize),
+					),
+				)
 		if subErr != nil {
 			log.Printf("Can't pind %v, err:%v",  n.address, err.Error())
 			return subErr
@@ -233,7 +265,7 @@ func (n *Client) ping(isReConnects... bool) error {
 	}
 
 	//if only gen rpc, do nothing
-	if n.mode <= define.ModeOfRpcGen {
+	if n.para.Mode <= define.ModeOfRpcGen {
 		return nil
 	}
 
