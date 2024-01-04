@@ -26,6 +26,9 @@ func cbForStreamReq(addr string, in *proto.Packet) error {
 
 //send stream data
 func sendStreamData(s *tinyrpc.Service) {
+	var (
+		err error
+	)
 	//format data
 	in := s.GenPacket()
 	in.MessageId = 2
@@ -33,8 +36,10 @@ func sendStreamData(s *tinyrpc.Service) {
 
 	//send to all
 	for {
-		err := s.SendStreamData(in)
-		log.Printf("server.sendStreamData, err:%v", err)
+		err = s.SendStreamData(in)
+		if err != nil {
+			log.Printf("server.sendStreamData, err:%v\n", err)
+		}
 		time.Sleep(time.Second * 3)
 	}
 }

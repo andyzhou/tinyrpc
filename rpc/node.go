@@ -52,7 +52,7 @@ func (r *Node) CastToNodes(
 		return errors.New("invalid parameter")
 	}
 	if len(r.remoteStreams) <= 0 {
-		return errors.New("no any remote nodes")
+		return nil
 	}
 	
 	//cast to relate nodes
