@@ -282,7 +282,7 @@ func (n *Client) ping(isReConnects... bool) error {
 			maxTryTimes++
 			continue
 		}
-		log.Printf("Create stream with server %v success", n.address)
+		//log.Printf("Create stream with server %v success", n.address)
 		break
 	}
 
@@ -436,7 +436,6 @@ func (n *Client) runMainProcess() {
 		close(n.sendChan)
 		close(n.receiveChan)
 		close(n.closeChan)
-		log.Printf("RpcClient::runMainProcess of %v need quit..", n.address)
 	}()
 
 	//loop
