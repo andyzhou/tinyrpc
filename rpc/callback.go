@@ -70,7 +70,7 @@ func (r *CallBack) StreamReq(
 	//check or sync remote rpc client info
 	remoteAddr := tag.RemoteAddr.String()
 	if r.nodeFace != nil {
-		log.Printf("service.RpcCallBack:StreamReq, add stream, remoteAddr:%v\n", remoteAddr)
+		//log.Printf("service.RpcCallBack:StreamReq, add stream, remoteAddr:%v\n", remoteAddr)
 		r.nodeFace.AddStream(remoteAddr, stream)
 	}
 
