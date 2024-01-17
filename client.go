@@ -437,7 +437,6 @@ func (n *Client) runMainProcess() {
 		//close relate chan
 		close(n.sendChan)
 		close(n.receiveChan)
-		close(n.closeChan)
 	}()
 
 	//loop
