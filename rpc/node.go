@@ -39,9 +39,9 @@ func (r *Node) Quit() {
 
 //cast packet to streams nodes
 func (r *Node) CastToNodes(
-				packet *proto.Packet,
-				nodes ...string,
-			) error {
+		packet *proto.Packet,
+		nodes ...string,
+	) error {
 	var (
 		stream proto.PacketService_StreamReqServer
 		isOk bool
@@ -151,7 +151,9 @@ func (r *Node) AddStream(
 }
 
 //set callback for node down
-func (r *Node) SetCBForNodeDown(cb func(remoteAddr string) bool) bool {
+func (r *Node) SetCBForNodeDown(
+		cb func(remoteAddr string) bool,
+	) bool {
 	if cb == nil {
 		return false
 	}

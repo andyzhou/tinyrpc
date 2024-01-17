@@ -61,17 +61,21 @@ func NewService(paras ...*ServicePara) *Service {
 	//detect
 	if paras != nil && len(paras) > 0 {
 		para = paras[0]
-	}else{
+	}
+	if para == nil {
 		//init default para
 		para = &ServicePara{
 			Port: define.DefaultRpcPort,
-			MaxMsgSize: 1024 * 1024 * 4, //4MB
+			MaxMsgSize: define.DefaultMsgSize, //1MB
 		}
 	}
 
 	//set default port
 	if para.Port <= 0 {
 		para.Port = define.DefaultRpcPort
+	}
+	if para.MaxMsgSize <= 0 {
+		para.MaxMsgSize = define.DefaultMsgSize
 	}
 
 	//init rpc nodes
@@ -85,6 +89,7 @@ func NewService(paras ...*ServicePara) *Service {
 		rpcStat: rpc.NewStat(rpcNode),
 		rpcCB:   rpc.NewCallBack(rpcNode),
 	}
+
 	//inter init
 	this.interInit()
 	return this
@@ -105,9 +110,9 @@ func (r *Service) Quit() {
 
 //send stream data to remote client
 func (r *Service) SendStreamData(
-				in *proto.Packet,
-				remoteAddress ...string,
-			) error {
+		in *proto.Packet,
+		remoteAddress ...string,
+	) error {
 	var (
 		err error
 	)
@@ -140,20 +145,26 @@ func (r *Service) SendStreamData(
 
 //set callback for stream request (STEP2-1)
 func (r *Service) SetCBForStream(
-			cb func(addr string, in *proto.Packet)error) {
+	cb func(addr string, in *proto.Packet)error) {
 	r.rpcCB.SetCBForStream(cb)
 }
 
 //set callback for general request (STEP2-2)
 func (r *Service) SetCBForGeneral(
-			cb func(addr string, in *proto.Packet)(*proto.Packet, error)) {
+	cb func(addr string, in *proto.Packet)(*proto.Packet, error)) {
 	r.rpcCB.SetCBForGen(cb)
 }
 
 //set callback for node down (STEP2-3)
 func (r *Service) SetCBForClientNodeDown(
-			cb func(remoteAddr string) bool) bool {
-	return r.rpcNode.SetCBForNodeDown(cb)
+	cb func(remoteAddr string) error) error {
+	return r.rpcStat.SetCBForRemoteDown(cb)
+}
+
+//set callback for node up to service (STEP2-4)
+func (r *Service) SetCBForClientNodeUp(
+	cb func(remoteAddr string) error) error {
+	return r.rpcStat.SetCBForRemoteUp(cb)
 }
 
 //begin service (STEP3)

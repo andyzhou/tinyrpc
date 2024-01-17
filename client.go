@@ -428,9 +428,11 @@ func (n *Client) runMainProcess() {
 		isOk bool
 		m any = nil
 	)
+
+	//defer
 	defer func() {
 		if err := recover(); err != m {
-			log.Printf("RpcClient::runMainProcess panic, err:%v", err)
+			log.Printf("client::runMainProcess panic, err:%v", err)
 		}
 		//close relate chan
 		close(n.sendChan)

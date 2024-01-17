@@ -20,9 +20,8 @@ import (
 
 //callback face
 type CallBack struct {
-	//cb for stream data
+	//cb for stream and gen data
 	streamCB func(string,*proto.Packet) error
-	//cb for general data
 	generalCB func(string,*proto.Packet)(*proto.Packet, error)
 	nodeFace *Node //nodes
 	sync.RWMutex
@@ -130,7 +129,7 @@ func (r *CallBack) SendReq(
 		return in, fmt.Errorf(errMsg)
 	}
 	if r.generalCB == nil {
-		errMsg = "didn't setup general callback"
+		errMsg = "need setup general callback"
 		in.ErrCode = define.ErrCodeOfNoCallBack
 		in.ErrMsg = errMsg
 		return in, fmt.Errorf(errMsg)

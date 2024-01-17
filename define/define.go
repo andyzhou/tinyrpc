@@ -5,6 +5,7 @@ import "time"
 //default value
 const (
 	DefaultRpcPort = 7100
+	DefaultMsgSize = 1024 * 1024 //1MB
 )
 
 //rpc mode

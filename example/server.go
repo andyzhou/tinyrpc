@@ -11,10 +11,16 @@ import (
 //example code for server
 
 //setup relate cb
-func cbForClientNodeDown(addr string) bool {
-	log.Printf("cbForNodeDown, addr:%v", addr)
-	return true
+func cbForClientNodeUp(addr string) error {
+	log.Printf("cbForNodeUp, addr:%v", addr)
+	return nil
 }
+
+func cbForClientNodeDown(addr string) error {
+	log.Printf("cbForNodeDown, addr:%v", addr)
+	return nil
+}
+
 func cbForGenReq(addr string, in *proto.Packet) (*proto.Packet, error) {
 	log.Printf("cbForGenReq, addr:%v, in:%v", addr, in)
 	return in, nil
@@ -62,10 +68,13 @@ func main() {
 	//init server
 	s := tinyrpc.NewService()
 
-	//set relate cb
-	s.SetCBForClientNodeDown(cbForClientNodeDown)
+	//set
 	s.SetCBForGeneral(cbForGenReq)
 	s.SetCBForStream(cbForStreamReq)
+
+	//cb for client stat
+	s.SetCBForClientNodeDown(cbForClientNodeDown)
+	s.SetCBForClientNodeUp(cbForClientNodeUp)
 
 	//start service
 	wg.Add(1)

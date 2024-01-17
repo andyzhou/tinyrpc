@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"google.golang.org/grpc/stats"
 	"log"
 	"sync"
@@ -21,6 +22,9 @@ type connCtxKey struct{}
 type Stat struct {
 	nodeFace *Node
 	connMap map[*stats.ConnTagInfo]string
+	//relate cb
+	cbForRemoteUp func(string) error
+	cbForRemoteDown func(string) error
 	sync.RWMutex
 }
 
@@ -43,6 +47,27 @@ func (h *Stat) Quit() {
 	h.connMap = map[*stats.ConnTagInfo]string{}
 }
 
+//inter cb setup
+func (h *Stat) SetCBForRemoteUp(cb func(string)error) error {
+	if cb == nil {
+		return errors.New("invalid parameter")
+	}
+	h.cbForRemoteUp = cb
+	return nil
+}
+
+func (h *Stat) SetCBForRemoteDown(cb func(string)error) error {
+	if cb == nil {
+		return errors.New("invalid parameter")
+	}
+	h.cbForRemoteDown = cb
+	return nil
+}
+
+/////////////////////
+//apply of interface
+/////////////////////
+
 //get connect tag
 func (h *Stat) GetConnTagFromContext(ctx context.Context) (*stats.ConnTagInfo, bool) {
 	tag, ok := ctx.Value(connCtxKey{}).(*stats.ConnTagInfo)
@@ -50,8 +75,12 @@ func (h *Stat) GetConnTagFromContext(ctx context.Context) (*stats.ConnTagInfo, b
 }
 
 //cb for rpc api
+//remote address connected
 func (h *Stat) TagConn(ctx context.Context, info *stats.ConnTagInfo) context.Context {
 	//log.Printf("TagConn, from address:%v\n", info.RemoteAddr)
+	if h.cbForRemoteUp != nil {
+		h.cbForRemoteUp(info.RemoteAddr.String())
+	}
 	return context.WithValue(ctx, connCtxKey{}, info)
 }
 
@@ -63,15 +92,16 @@ func (h *Stat) TagRPC(ctx context.Context, info *stats.RPCTagInfo) context.Conte
 
 //cb for rpc api
 func (h *Stat) HandleConn(ctx context.Context, s stats.ConnStats) {
-	//get tag current ctx
+	//get tag current ctx with lock
 	h.Lock()
 	defer h.Unlock()
 	tag, ok := h.GetConnTagFromContext(ctx)
 	if !ok || tag == nil {
-		log.Printf("can not get conn tag\n")
+		log.Printf("rpcStat:HandleConn, can not get conn tag\n")
 		return
 	}
 
+	//process stats
 	switch s.(type) {
 	case *stats.ConnBegin:
 		{
@@ -80,15 +110,20 @@ func (h *Stat) HandleConn(ctx context.Context, s stats.ConnStats) {
 		}
 	case *stats.ConnEnd:
 		{
+			//remove connect disconnect or ended
+			//call cb for connect end
+			if h.cbForRemoteDown != nil {
+				h.cbForRemoteDown(tag.RemoteAddr.String())
+			}
+
+			//delete tag from connect map
 			delete(h.connMap, tag)
+
 			//log.Printf("end conn, tag = (%p)%#v, now connections = %d\n", tag, tag, len(h.connMap))
 			//run node face to remove end connect
 			if h.nodeFace != nil {
 				remoteAddr := tag.RemoteAddr.String()
 				h.nodeFace.RemoveStream(remoteAddr)
-				if h.nodeFace.cbForNodeDown != nil {
-					h.nodeFace.cbForNodeDown(remoteAddr)
-				}
 			}
 		}
 	default:

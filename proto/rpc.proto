@@ -3,9 +3,9 @@ package tinyrpc;
 option go_package = "proto";
 option java_package = "com.tc.tinyrpc";
 
-//////////////////
+/////////////////////
 //message for packet
-//////////////////
+/////////////////////
 
 message Packet {
 	int32 kind = 1; //1:request 2:response
