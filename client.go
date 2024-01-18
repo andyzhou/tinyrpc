@@ -304,7 +304,6 @@ func (n *Client) receiveServerStream(
 			) {
 	var (
 		in *proto.Packet
-		isOk bool
 		err error
 		m any = nil
 	)
@@ -318,11 +317,6 @@ func (n *Client) receiveServerStream(
 
 	//receive data use for loop
 	for {
-		//try get close chan
-		_, isOk = <- n.closeChan
-		if isOk {
-			break
-		}
 		//receive data
 		in, err = stream.Recv()
 		if err != nil {
