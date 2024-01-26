@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/andyzhou/tinyrpc/define"
 	"github.com/andyzhou/tinyrpc/proto"
+	"github.com/andyzhou/tinyrpc/util"
 	"google.golang.org/grpc"
 	"io"
 	"log"
@@ -40,10 +41,11 @@ type Client struct {
 	receiveCloseChan chan struct{}
 	closeChan chan struct{}
 	hasRun bool
-	ctx context.Context
+	streamTimeOut int //xx seconds, 0 means no limit.
 	//callback
 	cbOfStream func(packet *proto.Packet)error //cb for received stream data of outside
 	cbOfNodeDown func(node string) error //cb for service node down
+	util.Util
 	sync.RWMutex
 }
 
@@ -75,7 +77,7 @@ func NewClient(paras ...*ClientPara) *Client {
 		receiveChan:make(chan proto.Packet, define.NodeDataChanSize),
 		receiveCloseChan:make(chan struct{}, 1),
 		closeChan:make(chan struct{}, 2),
-		ctx:context.Background(),
+		//ctx:context.Background(),
 	}
 	return this
 }
@@ -87,7 +89,10 @@ func NewClient(paras ...*ClientPara) *Client {
 //quit
 func (n *Client) Quit() {
 	if n.closeChan != nil {
-		close(n.closeChan)
+		n.closeChan <- struct{}{}
+		time.Sleep(time.Second)
+		n.closeChan <- struct{}{}
+		time.Sleep(time.Second)
 	}
 }
 
@@ -199,6 +204,16 @@ func (n *Client) SetServerNodeDownCallBack(cb func(string) error) {
 	n.cbOfNodeDown = cb
 }
 
+//set stream receive timeout
+//0 means no limit
+func (n *Client) SetStreamReceiveTimeOut(seconds int) bool {
+	if seconds < 0 {
+		return false
+	}
+	n.streamTimeOut = seconds
+	return true
+}
+
 //check server connect
 func (n *Client) CheckConn() bool {
 	return n.checkServerConn()
@@ -221,6 +236,8 @@ func (n *Client) ping(isReConnects... bool) error {
 		isFailed bool
 		maxTryTimes int
 		isReConn bool
+		ctx context.Context
+		cancel context.CancelFunc
 	)
 	//check
 	if isReConnects != nil && len(isReConnects) > 0 {
@@ -269,11 +286,26 @@ func (n *Client) ping(isReConnects... bool) error {
 		return nil
 	}
 
+	//setup timeout for receive stream
+	if n.streamTimeOut > 0 {
+		ctx, cancel = context.WithTimeout(
+			context.Background(),
+			time.Second * time.Duration(n.streamTimeOut))
+	}else{
+		//forever
+		ctx = context.Background()
+	}
+
 	//create stream of both side
 	for {
-		stream, err = n.client.StreamReq(n.ctx)
+		//stream, err = n.client.StreamReq(n.ctx)
+		stream, err = n.client.StreamReq(ctx)
 		if err != nil {
 			if maxTryTimes > define.MaxTryTimes {
+				//cancel context
+				if cancel != nil {
+					cancel()
+				}
 				return err
 				break
 			}
@@ -282,11 +314,14 @@ func (n *Client) ping(isReConnects... bool) error {
 			maxTryTimes++
 			continue
 		}
-		//log.Printf("Create stream with server %v success", n.address)
 		break
 	}
 
 	if isFailed {
+		//cancel context
+		if cancel != nil {
+			cancel()
+		}
 		return err
 	}
 
@@ -294,13 +329,15 @@ func (n *Client) ping(isReConnects... bool) error {
 	n.stream = stream
 
 	//spawn stream receiver
-	go n.receiveServerStream(stream)
+	go n.receiveServerStream(stream, ctx, cancel)
 	return nil
 }
 
 //receive stream data from server
 func (n *Client) receiveServerStream(
 				stream proto.PacketService_StreamReqClient,
+				ctx context.Context,
+				cancel context.CancelFunc,
 			) {
 	var (
 		in *proto.Packet
@@ -311,8 +348,13 @@ func (n *Client) receiveServerStream(
 	//try catch panic
 	defer func() {
 		if subErr := recover(); subErr != m {
-			log.Printf("RpcClient::receiveServerStream, panic happened, err:%v", err)
+			log.Printf("RpcClient::receiveServerStream, panic happened, err:%v", subErr)
 		}
+		//context cancel
+		if cancel != nil {
+			cancel()
+		}
+		log.Printf("RpcClient::receiveServerStream process ended!\n")
 	}()
 
 	//receive data use for loop
@@ -320,6 +362,10 @@ func (n *Client) receiveServerStream(
 		//receive data
 		in, err = stream.Recv()
 		if err != nil {
+			if ctx.Err() == context.DeadlineExceeded {
+				log.Printf("RpcClient::receiveServerStream, Receive data time out.\n")
+				break
+			}
 			if err == io.EOF {
 				continue
 			}
@@ -327,9 +373,15 @@ func (n *Client) receiveServerStream(
 			break
 		}
 		//send data to receive chan of outside
-		if n.receiveChan != nil {
-			select {
-			case n.receiveChan <- *in:
+		closed, _ := n.IsChanClosed(n.receiveChan)
+		if closed {
+			log.Printf("RpcClient::receiveServerStream, receive data chan is closed\n")
+			break
+		}else{
+			if n.receiveChan != nil {
+				select {
+				case n.receiveChan <- *in:
+				}
 			}
 		}
 	}
@@ -397,6 +449,7 @@ func (n *Client) tickerProcess() {
 		}
 		//stop ticker
 		ticker.Stop()
+		log.Printf("RpcClient::tickerProcess ended!\n")
 	}()
 
 	//check server first time
@@ -431,6 +484,7 @@ func (n *Client) runMainProcess() {
 		//close relate chan
 		close(n.sendChan)
 		close(n.receiveChan)
+		log.Printf("RpcClient::runMainProcess ended!\n")
 	}()
 
 	//loop

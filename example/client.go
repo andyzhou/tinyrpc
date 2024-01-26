@@ -113,6 +113,7 @@ func cbForStreamData(pack *proto.Packet) error {
 //set cb for service node down
 func cbForServiceNodeDown(node string) error {
 	log.Printf("cbForServiceNodeDown, node:%v\n", node)
+	return nil
 
 	//close old process
 	closeChan <- true
@@ -158,8 +159,14 @@ func startNewClient() {
 	c.SetServerNodeDownCallBack(cbForServiceNodeDown)
 
 	//send gen rpc request
-	go sendGenReqProcess(c)
+	//go sendGenReqProcess(c)
 	go sendStreamReqProcess(c)
+
+	//test auto close
+	forceQuit := func() {
+		c.Quit()
+	}
+	time.AfterFunc(time.Second * 5, forceQuit)
 }
 
 func main() {
