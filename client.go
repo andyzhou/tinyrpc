@@ -28,6 +28,7 @@ type ClientPara struct {
 	Mode       int //ModeOfRpcGen, ModeOfRpcStream, ModeOfRpcAll
 	MaxMsgSize int //default 4MB
 	TimeOut    int //xx seconds
+	AutoReConn bool
 }
 
 //rpc client face
@@ -66,6 +67,7 @@ func NewClient(paras ...*ClientPara) *Client {
 			Mode: define.ModeOfRpcAll,
 			MaxMsgSize: 1024 * 1024 * 4, //4MB
 			TimeOut: define.DefaultConnTimeOut,
+			AutoReConn: true,
 		}
 	}
 	if para.TimeOut <= 0 {
@@ -84,7 +86,6 @@ func NewClient(paras ...*ClientPara) *Client {
 		receiveChan:make(chan proto.Packet, define.NodeDataChanSize),
 		receiveCloseChan:make(chan struct{}, 1),
 		closeChan:make(chan struct{}, 2),
-		//ctx:context.Background(),
 	}
 	return this
 }
@@ -144,6 +145,10 @@ func (n *Client) ConnectServer() error {
 	}
 	err := n.ping(true)
 	if err != nil {
+		if n.para.AutoReConn {
+			time.Sleep(time.Second)
+			return n.ConnectServer()
+		}
 		return err
 	}
 	if !n.hasRun {
