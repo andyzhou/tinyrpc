@@ -113,10 +113,8 @@ func cbForStreamData(pack *proto.Packet) error {
 //set cb for service node down
 func cbForServiceNodeDown(node string) error {
 	log.Printf("cbForServiceNodeDown, node:%v\n", node)
-	return nil
 
 	//close old process
-	closeChan <- true
 	closeChan <- true
 	time.Sleep(time.Second * 2)
 
@@ -146,7 +144,10 @@ func startNewClient() {
 		c, err = initNewClient()
 		if err != nil {
 			log.Printf("connect rpc server failed, err:%v\n", err.Error())
-			time.Sleep(time.Second * 2)
+			if c != nil {
+				c.Quit()
+			}
+			time.Sleep(time.Second)
 		}else{
 			//connect success
 			log.Printf("connect rpc server success..\n")
@@ -162,11 +163,11 @@ func startNewClient() {
 	//go sendGenReqProcess(c)
 	go sendStreamReqProcess(c)
 
-	//test auto close
-	forceQuit := func() {
-		c.Quit()
-	}
-	time.AfterFunc(time.Second * 5, forceQuit)
+	////test auto close
+	//forceQuit := func() {
+	//	c.Quit()
+	//}
+	//time.AfterFunc(time.Second * 5, forceQuit)
 }
 
 func main() {

@@ -25,26 +25,29 @@ import (
 
 //rpc client para
 type ClientPara struct {
-	Mode int //ModeOfRpcGen, ModeOfRpcStream, ModeOfRpcAll
+	Mode       int //ModeOfRpcGen, ModeOfRpcStream, ModeOfRpcAll
 	MaxMsgSize int //default 4MB
+	TimeOut    int //xx seconds
 }
 
 //rpc client face
 type Client struct {
-	para *ClientPara //rpc client para
-	address string //node remote address
-	conn *grpc.ClientConn //rpc connect
-	client proto.PacketServiceClient //service client
-	stream proto.PacketService_StreamReqClient //stream packet client
-	receiveChan chan proto.Packet //packet chan for receive outside
-	sendChan chan proto.Packet //packet chan for send
+	para             *ClientPara                         //rpc client para
+	address          string                              //node remote address
+	conn             *grpc.ClientConn                    //rpc connect
+	client           proto.PacketServiceClient           //service client
+	stream           proto.PacketService_StreamReqClient //stream packet client
+	receiveChan      chan proto.Packet                   //packet chan for receive outside
+	sendChan         chan proto.Packet                   //packet chan for send
 	receiveCloseChan chan struct{}
-	closeChan chan struct{}
-	hasRun bool
-	streamTimeOut int //xx seconds, 0 means no limit.
+	closeChan        chan struct{}
+	hasRun           bool
+	streamTimeOut    int //xx seconds, 0 means no limit.
+	connCtx context.Context
+	connCancel context.CancelFunc
 	//callback
-	cbOfStream func(packet *proto.Packet)error //cb for received stream data of outside
-	cbOfNodeDown func(node string) error //cb for service node down
+	cbOfStream   func(packet *proto.Packet) error //cb for received stream data of outside
+	cbOfNodeDown func(node string) error          //cb for service node down
 	util.Util
 	sync.RWMutex
 }
@@ -62,7 +65,11 @@ func NewClient(paras ...*ClientPara) *Client {
 		para = &ClientPara{
 			Mode: define.ModeOfRpcAll,
 			MaxMsgSize: 1024 * 1024 * 4, //4MB
+			TimeOut: define.DefaultConnTimeOut,
 		}
+	}
+	if para.TimeOut <= 0 {
+		para.TimeOut = define.DefaultConnTimeOut
 	}
 
 	//set default mode
@@ -93,6 +100,12 @@ func (n *Client) Quit() {
 		time.Sleep(time.Second)
 		n.closeChan <- struct{}{}
 		time.Sleep(time.Second)
+	}
+	if n.conn != nil {
+		n.conn.Close()
+	}
+	if n.connCancel != nil {
+		n.connCancel()
 	}
 }
 
@@ -182,9 +195,14 @@ func (n *Client) SendStreamData(data *proto.Packet) error {
 		}
 	}()
 
-	//send to data chan
-	select {
-	case n.sendChan <- *data:
+	chanClosed, _ := n.IsChanClosed(n.sendChan)
+	if chanClosed {
+		log.Printf("RpcClient::SendData, chan has closed\n")
+	}else{
+		//send to data chan
+		select {
+		case n.sendChan <- *data:
+		}
 	}
 	return nil
 }
@@ -245,6 +263,9 @@ func (n *Client) ping(isReConnects... bool) error {
 	}
 	if isReConn {
 		if n.conn != nil {
+			if n.connCancel != nil {
+				n.connCancel()
+			}
 			n.conn.Close()
 			n.conn = nil
 		}
@@ -255,9 +276,15 @@ func (n *Client) ping(isReConnects... bool) error {
 
 	//check and init rpc connect
 	if n.conn == nil {
+		n.connCtx, n.connCancel = context.WithTimeout(
+						context.Background(),
+						time.Duration(n.para.TimeOut) * time.Second)
+
 		//connect remote server
-		conn, subErr := grpc.Dial(
+		conn, subErr := grpc.DialContext(
+					n.connCtx,
 					n.address,
+					grpc.WithBlock(), //wait block until shake hand succeed
 					grpc.WithInsecure(),
 					grpc.WithDefaultCallOptions(
 						grpc.MaxCallSendMsgSize(n.para.MaxMsgSize),
@@ -265,7 +292,10 @@ func (n *Client) ping(isReConnects... bool) error {
 					),
 				)
 		if subErr != nil {
-			log.Printf("Can't pind %v, err:%v",  n.address, err.Error())
+			log.Printf("Can't pind %v, err:%v",  n.address, subErr.Error())
+			if n.connCancel != nil {
+				n.connCancel()
+			}
 			return subErr
 		}
 
@@ -482,7 +512,7 @@ func (n *Client) runMainProcess() {
 			log.Printf("client::runMainProcess panic, err:%v", err)
 		}
 		//close relate chan
-		close(n.sendChan)
+		//close(n.sendChan)
 		close(n.receiveChan)
 		log.Printf("RpcClient::runMainProcess ended!\n")
 	}()
