@@ -465,6 +465,9 @@ func (n *Client) checkServerStatus() {
 
 //check remote connect is lost or not
 func (n *Client) checkServerConn() bool {
+	if n.conn == nil {
+		return false
+	}
 	state := n.conn.GetState().String()
 	if state == "TRANSIENT_FAILURE" || state == "SHUTDOWN" {
 		return false
