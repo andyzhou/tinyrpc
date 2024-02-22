@@ -7,8 +7,10 @@ import (
 	"github.com/andyzhou/tinyrpc/proto"
 	"github.com/andyzhou/tinyrpc/rpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 	"net"
 	"sync"
+	"time"
 )
 
 /*
@@ -29,6 +31,7 @@ var (
 type ServicePara struct {
 	Port int //rpc port
 	MaxMsgSize int //max message size, default 4MB
+	MaxReadSize int
 }
 
 //rpc service face
@@ -66,7 +69,8 @@ func NewService(paras ...*ServicePara) *Service {
 		//init default para
 		para = &ServicePara{
 			Port: define.DefaultRpcPort,
-			MaxMsgSize: define.DefaultMsgSize, //1MB
+			MaxMsgSize: define.DefaultMsgSize,
+			MaxReadSize: define.DefaultReadMsgSize,
 		}
 	}
 
@@ -76,6 +80,9 @@ func NewService(paras ...*ServicePara) *Service {
 	}
 	if para.MaxMsgSize <= 0 {
 		para.MaxMsgSize = define.DefaultMsgSize
+	}
+	if para.MaxReadSize <= 0 {
+		para.MaxReadSize = define.DefaultReadMsgSize
 	}
 
 	//init rpc nodes
@@ -229,10 +236,20 @@ func (r *Service) GenPacket() *proto.Packet {
 
 //inter init
 func (r *Service) interInit() {
+	//keep alive args
+	keepAliveArgs := keepalive.ServerParameters{
+		Time:              10 * time.Second,
+		Timeout:           15 * time.Second,
+		MaxConnectionIdle: 5 * time.Minute,
+	}
+
 	//create rpc server with max msg size and rpc stat support
 	r.service = grpc.NewServer(
+			grpc.KeepaliveParams(keepAliveArgs),
 			grpc.MaxSendMsgSize(r.para.MaxMsgSize), //max send size
 			grpc.MaxRecvMsgSize(r.para.MaxMsgSize), //max receive size
+			grpc.ReadBufferSize(r.para.MaxReadSize),
+			grpc.WriteBufferSize(r.para.MaxReadSize),
 			grpc.StatsHandler(r.rpcStat), //rpc stat
 		)
 

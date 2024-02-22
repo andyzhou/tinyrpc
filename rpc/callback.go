@@ -62,14 +62,12 @@ func (r *CallBack) StreamReq(
 	tag, ok := RunStat.GetConnTagFromContext(ctx)
 	if !ok {
 		err = fmt.Errorf("StreamReq, can't get tag from node stream")
-		log.Println(err)
 		return err
 	}
 
 	//check or sync remote rpc client info
 	remoteAddr := tag.RemoteAddr.String()
 	if r.nodeFace != nil {
-		//log.Printf("service.RpcCallBack:StreamReq, add stream, remoteAddr:%v\n", remoteAddr)
 		r.nodeFace.AddStream(remoteAddr, stream)
 	}
 
@@ -120,6 +118,8 @@ func (r *CallBack) SendReq(
 	var (
 		remoteAddr string
 		errMsg string
+		out *proto.Packet
+		err error
 	)
 	//check
 	if in == nil {
@@ -143,7 +143,7 @@ func (r *CallBack) SendReq(
 	}
 
 	//call general callback
-	out, err := r.generalCB(remoteAddr, in)
+	out, err = r.generalCB(remoteAddr, in)
 	if err != nil {
 		out.ErrCode = define.ErrCodeOfRunError
 		out.ErrMsg = err.Error()

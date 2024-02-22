@@ -174,8 +174,12 @@ func (n *Client) SendRequest(req *proto.Packet) (*proto.Packet, error) {
 		return nil, errors.New("client lost connect")
 	}
 
+	//create context
+	ctx, cancel := n.createContext()
+	defer cancel()
+
 	//send request
-	resp, err := n.client.SendReq(context.Background(), req)
+	resp, err := n.client.SendReq(ctx, req)
 	return resp, err
 }
 
@@ -251,6 +255,13 @@ func (n *Client) Ping(isReConn ...bool) error {
 //private func
 ////////////////
 
+//create context
+func (n *Client) createContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(
+		context.Background(),
+		time.Duration(n.para.TimeOut) * time.Second)
+}
+
 //ping remote server
 func (n *Client) ping(isReConnects... bool) error {
 	var (
@@ -301,6 +312,7 @@ func (n *Client) ping(isReConnects... bool) error {
 			if n.connCancel != nil {
 				n.connCancel()
 			}
+			n.hasRun = false
 			return subErr
 		}
 
@@ -308,6 +320,7 @@ func (n *Client) ping(isReConnects... bool) error {
 		n.Lock()
 		n.client = proto.NewPacketServiceClient(conn)
 		n.conn = conn
+		n.hasRun = true
 		n.Unlock()
 	}
 
@@ -451,11 +464,12 @@ func (n *Client) checkServerStatus() {
 	}else{
 		state := n.conn.GetState().String()
 		if state == "TRANSIENT_FAILURE" || state == "SHUTDOWN" {
-			//node down
+			//server node down
 			if n.cbOfNodeDown != nil {
 				n.cbOfNodeDown(n.address)
 			}
 			needPing = true
+			n.hasRun = false
 		}
 	}
 	if needPing {
