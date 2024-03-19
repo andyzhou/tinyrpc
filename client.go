@@ -162,16 +162,27 @@ func (n *Client) ConnectServer() error {
 
 //send general data to remote server
 //sync mode
-func (n *Client) SendRequest(req *proto.Packet) (*proto.Packet, error) {
+func (n *Client) SendRequest(
+		req *proto.Packet,
+		needChecks ...bool,
+	) (*proto.Packet, error) {
+	var (
+		needCheck bool
+	)
 	//check
 	if req == nil || n.client == nil {
 		return nil, errors.New("invalid parameter")
 	}
+	if needChecks != nil && len(needChecks) > 0 {
+		needCheck = needChecks[0]
+	}
 
 	//check connect lost or not
-	bRet := n.checkServerConn()
-	if !bRet {
-		return nil, errors.New("client lost connect")
+	if needCheck {
+		bRet := n.checkServerConn()
+		if !bRet {
+			return nil, errors.New("client lost connect")
+		}
 	}
 
 	//create context

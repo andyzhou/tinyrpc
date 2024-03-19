@@ -22,7 +22,7 @@ func cbForClientNodeDown(addr string) error {
 }
 
 func cbForGenReq(addr string, in *proto.Packet) (*proto.Packet, error) {
-	//log.Printf("cbForGenReq, addr:%v, in:%v", addr, in)
+	log.Printf("cbForGenReq, addr:%v, in:%v", addr, in)
 	return in, nil
 }
 func cbForStreamReq(addr string, in *proto.Packet) error {

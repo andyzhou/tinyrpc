@@ -56,8 +56,8 @@ func getRandClient() *tinyrpc.Client {
 	randIdx := rand.Intn(MaxClients)
 
 	//get target client
-	//locker.Lock()
-	//defer locker.Unlock()
+	locker.Lock()
+	defer locker.Unlock()
 	client, ok := clients[randIdx]
 	if ok && client != nil {
 		return client
@@ -86,8 +86,8 @@ func sendGenReq() (*proto.Packet, error){
 	return resp, subErr
 }
 
-//test rpc
-func TestRpc(t *testing.T) {
+//test gen rpc
+func TestGenRpc(t *testing.T) {
 	resp, subErr := sendGenReq()
 	if subErr != nil {
 		t.Errorf("test rpc failed, err:%v\n", subErr.Error())
@@ -96,8 +96,8 @@ func TestRpc(t *testing.T) {
 	t.Logf("test rpc succeed, resp:%v\n", resp)
 }
 
-//benchmark rpc
-func BenchmarkRpc(b *testing.B) {
+//benchmark gen rpc
+func BenchmarkGenRpc(b *testing.B) {
 	succeed := 0
 	failed := 0
 	for i := 0; i < b.N; i++ {
