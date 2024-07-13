@@ -4,11 +4,14 @@ import "time"
 
 // default value
 const (
-	DefaultRpcPort       = 7100
-	DefaultMsgSize       = 1024 * 1024 //1MB
-	DefaultReadMsgSize   = 1024 * 8    //8KB
-	DefaultStreamTimeOut = 10          //5 minutes
-	DefaultConnTimeOut   = 5           //xxx seconds
+	DefaultRpcPort         = 7100
+	DefaultMsgSize         = 1024 * 1024 //1MB
+	DefaultReadMsgSize     = 1024 * 8    //8KB
+	DefaultStreamTimeOut   = 10          //5 minutes
+	DefaultConnTimeOut     = 5           //xxx seconds
+	DefaultActiveSeconds   = 10          //xxx seconds
+	DefaultTimeoutSeconds  = 15          //xxx seconds
+	DefaultMaxConnectIdles = 10          //xxx number
 )
 
 // rpc mode

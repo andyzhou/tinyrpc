@@ -46,9 +46,7 @@ func (r *CallBack) SetCBForGen(cb func(string,*proto.Packet)(*proto.Packet, erro
 }
 
 //receive stream data from client
-func (r *CallBack) StreamReq(
-				stream proto.PacketService_StreamReqServer,
-			) error {
+func (r *CallBack) StreamReq(stream proto.PacketService_StreamReqServer) error {
 	var (
 		in *proto.Packet
 		err error
@@ -111,10 +109,7 @@ func (r *CallBack) StreamReq(
 }
 
 //receive general request from client
-func (r *CallBack) SendReq(
-				ctx context.Context,
-				in *proto.Packet,
-			) (*proto.Packet, error) {
+func (r *CallBack) SendReq(ctx context.Context, in *proto.Packet) (*proto.Packet, error) {
 	var (
 		remoteAddr string
 		errMsg string

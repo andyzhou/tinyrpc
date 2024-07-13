@@ -5,6 +5,7 @@ import (
 	"errors"
 	"google.golang.org/grpc/stats"
 	"log"
+	"runtime"
 	"sync"
 )
 
@@ -42,9 +43,16 @@ func NewStat(nodeFace *Node) *Stat {
 
 //quit
 func (h *Stat) Quit() {
+	//clear connect map
 	h.Lock()
 	defer h.Unlock()
+	for k, _ := range h.connMap {
+		delete(h.connMap, k)
+	}
 	h.connMap = map[*stats.ConnTagInfo]string{}
+
+	//gc memory
+	runtime.GC()
 }
 
 //inter cb setup

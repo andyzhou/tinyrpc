@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/andyzhou/tinyrpc/proto"
 	"log"
+	"runtime"
 	"sync"
 )
 
@@ -35,6 +36,9 @@ func (r *Node) Quit() {
 	r.Lock()
 	defer r.Unlock()
 	r.remoteStreams = map[string]proto.PacketService_StreamReqServer{}
+
+	//gc memory
+	runtime.GC()
 }
 
 //cast packet to streams nodes

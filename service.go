@@ -29,21 +29,28 @@ var (
 
 //service para
 type ServicePara struct {
-	Port int //rpc port
-	MaxMsgSize int //max message size, default 4MB
+	//base setup
+	Host        string //rpc host
+	Port        int    //rpc port
+	MaxMsgSize  int    //max message size, default 4MB
 	MaxReadSize int
+
+	//for keep active
+	ActiveSeconds   int
+	TimeoutSeconds  int
+	MaxConnectIdles int
 }
 
 //rpc service face
 type Service struct {
-	para *ServicePara //rpc service para
-	address string //rpc service address
-	listener net.Listener //tcp listener
-	service *grpc.Server
-	rpcStat *rpc.Stat   //inter rpc stat
-	rpcCB *rpc.CallBack //inter rpc service callback
-	rpcNode *rpc.Node   //inter rpc node
-	started bool
+	para     *ServicePara  //rpc service para
+	address  string        //rpc service address
+	listener net.Listener  //tcp listener
+	service  *grpc.Server  //inter rpc server
+	rpcStat  *rpc.Stat     //inter rpc stat
+	rpcCB    *rpc.CallBack //inter rpc service callback
+	rpcNode  *rpc.Node     //inter rpc node
+	started  bool
 	sync.RWMutex
 }
 
@@ -91,7 +98,7 @@ func NewService(paras ...*ServicePara) *Service {
 	//self init
 	this := &Service{
 		para: para,
-		address: fmt.Sprintf(":%d", para.Port),
+		address: fmt.Sprintf("%v:%d", para.Host, para.Port),
 		rpcNode: rpcNode,
 		rpcStat: rpc.NewStat(rpcNode),
 		rpcCB:   rpc.NewCallBack(rpcNode),
@@ -236,11 +243,29 @@ func (r *Service) GenPacket() *proto.Packet {
 
 //inter init
 func (r *Service) interInit() {
+	//active seconds
+	activeSeconds := r.para.ActiveSeconds
+	if activeSeconds <= 0 {
+		activeSeconds = define.DefaultActiveSeconds
+	}
+
+	//timeout seconds
+	timeoutSeconds := r.para.TimeoutSeconds
+	if timeoutSeconds <= 0 {
+		timeoutSeconds = define.DefaultTimeoutSeconds
+	}
+
+	//max connect idles
+	maxConnIdles := r.para.MaxConnectIdles
+	if maxConnIdles <= 0 {
+		maxConnIdles = define.DefaultMaxConnectIdles
+	}
+
 	//keep alive args
 	keepAliveArgs := keepalive.ServerParameters{
-		Time:              10 * time.Second,
-		Timeout:           15 * time.Second,
-		MaxConnectionIdle: 5 * time.Minute,
+		Time:              time.Duration(activeSeconds) * time.Second,
+		Timeout:           time.Duration(timeoutSeconds) * time.Second,
+		MaxConnectionIdle: time.Duration(maxConnIdles) * time.Minute,
 	}
 
 	//create rpc server with max msg size and rpc stat support
@@ -253,6 +278,6 @@ func (r *Service) interInit() {
 			grpc.StatsHandler(r.rpcStat), //rpc stat
 		)
 
-	//register call back
+	//register service call back
 	proto.RegisterPacketServiceServer(r.service, r.rpcCB)
 }
