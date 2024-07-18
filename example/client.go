@@ -26,7 +26,7 @@ var (
 func sendGenReqProcess(c *tinyrpc.Client) {
 	var (
 		err error
-		ticker = time.NewTicker(time.Second * 5)
+		ticker = time.NewTicker(time.Second/10)
 	)
 
 	//check
@@ -160,8 +160,8 @@ func startNewClient() {
 	c.SetServerNodeDownCallBack(cbForServiceNodeDown)
 
 	//send gen rpc request
-	//go sendGenReqProcess(c)
-	go sendStreamReqProcess(c)
+	go sendGenReqProcess(c)
+	//go sendStreamReqProcess(c)
 
 	////test auto close
 	//forceQuit := func() {

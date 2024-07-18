@@ -91,6 +91,7 @@ func (r *Node) CleanUp() {
 	r.Lock()
 	defer r.Unlock()
 	r.remoteStreams = map[string]proto.PacketService_StreamReqServer{}
+	runtime.GC()
 }
 
 //get all streams
@@ -110,13 +111,16 @@ func (r *Node) RemoveStream(remoteAddr string) bool {
 	r.Lock()
 	defer r.Unlock()
 	delete(r.remoteStreams, remoteAddr)
+	if len(r.remoteStreams) <= 0 {
+		runtime.GC()
+	}
 	return true
 }
 
 //get stream
 func (r *Node) GetStream(
-				remoteAddr string,
-			) (proto.PacketService_StreamReqServer, error) {
+		remoteAddr string,
+	) (proto.PacketService_StreamReqServer, error) {
 	//check
 	if remoteAddr == "" {
 		return nil, errors.New("invalid parameter")
@@ -136,9 +140,9 @@ func (r *Node) GetStream(
 
 //check or add remote client stream info
 func (r *Node) AddStream(
-				remoteAddr string,
-				stream proto.PacketService_StreamReqServer,
-			) error {
+		remoteAddr string,
+		stream proto.PacketService_StreamReqServer,
+	) error {
 	//check
 	if remoteAddr == "" || stream == nil {
 		return errors.New("invalid parameter")

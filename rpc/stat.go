@@ -110,6 +110,7 @@ func (h *Stat) HandleConn(ctx context.Context, s stats.ConnStats) {
 	}
 
 	//process stats
+	needCheck := false
 	switch s.(type) {
 	case *stats.ConnBegin:
 		{
@@ -126,6 +127,7 @@ func (h *Stat) HandleConn(ctx context.Context, s stats.ConnStats) {
 
 			//delete tag from connect map
 			delete(h.connMap, tag)
+			needCheck = true
 
 			//log.Printf("end conn, tag = (%p)%#v, now connections = %d\n", tag, tag, len(h.connMap))
 			//run node face to remove end connect
@@ -136,6 +138,12 @@ func (h *Stat) HandleConn(ctx context.Context, s stats.ConnStats) {
 		}
 	default:
 		log.Printf("illegal ConnStats type\n")
+	}
+
+	//check and gc memory opt
+	if needCheck && len(h.connMap) <= 0 {
+		h.connMap = map[*stats.ConnTagInfo]string{}
+		runtime.GC()
 	}
 }
 

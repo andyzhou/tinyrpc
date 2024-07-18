@@ -1,11 +1,18 @@
 package main
 
 import (
+	"fmt"
 	"github.com/andyzhou/tinyrpc"
 	"github.com/andyzhou/tinyrpc/proto"
 	"log"
+	"net/http"
+	"os"
+	"runtime"
+	"runtime/pprof"
 	"sync"
 	"time"
+
+	_ "net/http/pprof"
 )
 
 //example code for server
@@ -22,11 +29,11 @@ func cbForClientNodeDown(addr string) error {
 }
 
 func cbForGenReq(addr string, in *proto.Packet) (*proto.Packet, error) {
-	log.Printf("cbForGenReq, addr:%v, in:%v", addr, in)
+	//log.Printf("cbForGenReq, addr:%v, in:%v", addr, in)
 	return in, nil
 }
 func cbForStreamReq(addr string, in *proto.Packet) error {
-	log.Printf("cbForStreamReq, addr:%v, in:%v", addr, in)
+	//log.Printf("cbForStreamReq, addr:%v, in:%v", addr, in)
 	return nil
 }
 
@@ -50,11 +57,62 @@ func sendStreamData(s *tinyrpc.Service) {
 	}
 }
 
+//cpu pprof
+func startCpuProfile()  {
+	//create cpu pprof file
+	cpuProfFile, err := os.OpenFile("cpu.pprof", os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		panic(any(err))
+	}
+
+	//start cpu profile
+	err = pprof.StartCPUProfile(cpuProfFile)
+	if err != nil {
+		panic(any(err))
+	}
+}
+
+//memory pprof
+func startMemoryProfile()  {
+	//create memory pprof file
+	memProfFile, err := os.OpenFile("mem.pprof", os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		panic(any(err))
+	}
+
+	//start cpu profile
+	err = pprof.WriteHeapProfile(memProfFile)
+	if err != nil {
+		panic(any(err))
+	}
+}
+
+func stopProfile() {
+	pprof.StopCPUProfile()
+}
+
+//start profile
+func startProfile() {
+	port := 6060
+	addr := fmt.Sprintf(":%v", port)
+	log.Printf("start profile on port %v\n", port)
+	if err := http.ListenAndServe(addr, nil); err != nil {
+		log.Fatal(err)
+		os.Exit(0)
+	}
+}
+
 func main() {
 	var (
 		wg sync.WaitGroup
 		m any = nil
 	)
+
+	//run time setup
+	n := 1
+	runtime.GOMAXPROCS(n)
+	runtime.SetMutexProfileFraction(n)
+	runtime.SetBlockProfileRate(n)
 
 	//defer
 	defer func() {
@@ -76,10 +134,13 @@ func main() {
 	s.SetCBForClientNodeDown(cbForClientNodeDown)
 	s.SetCBForClientNodeUp(cbForClientNodeUp)
 
+	//start profile
+	go startProfile()
+
 	//start service
 	wg.Add(1)
 	log.Printf("start server on port %v..", s.GetPort())
 	s.Start()
-	go sendStreamData(s)
+	//go sendStreamData(s)
 	wg.Wait()
 }
