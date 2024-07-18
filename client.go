@@ -394,10 +394,10 @@ func (n *Client) ping(isReConnects... bool) error {
 
 //receive stream data from server
 func (n *Client) receiveServerStream(
-				stream proto.PacketService_StreamReqClient,
-				ctx context.Context,
-				cancel context.CancelFunc,
-			) {
+		stream proto.PacketService_StreamReqClient,
+		ctx context.Context,
+		cancel context.CancelFunc,
+	) {
 	var (
 		in *proto.Packet
 		err error
