@@ -66,7 +66,7 @@ func sendGenReqProcess(c *tinyrpc.Client) {
 
 func sendStreamReqProcess(c *tinyrpc.Client) {
 	var (
-		ticker = time.NewTicker(time.Second * 5)
+		ticker = time.NewTicker(time.Second / 5)
 		err error
 	)
 	//check
@@ -106,7 +106,7 @@ func sendStreamReqProcess(c *tinyrpc.Client) {
 
 //set cb for stream data
 func cbForStreamData(pack *proto.Packet) error {
-	log.Printf("cbForStreamData, pack data:%v", pack.Data)
+	log.Printf("cbForStreamData, pack messageId:%v", pack.MessageId)
 	return nil
 }
 
@@ -161,7 +161,7 @@ func startNewClient() {
 
 	//send gen rpc request
 	go sendGenReqProcess(c)
-	//go sendStreamReqProcess(c)
+	go sendStreamReqProcess(c)
 
 	////test auto close
 	//forceQuit := func() {

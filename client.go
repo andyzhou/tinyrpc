@@ -331,7 +331,6 @@ func (n *Client) ping(isReConnects... bool) error {
 		n.Lock()
 		n.client = proto.NewPacketServiceClient(conn)
 		n.conn = conn
-		n.hasRun = true
 		n.Unlock()
 	}
 

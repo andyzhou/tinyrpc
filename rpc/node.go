@@ -147,13 +147,16 @@ func (r *Node) AddStream(
 	if remoteAddr == "" || stream == nil {
 		return errors.New("invalid parameter")
 	}
+
+	//check and add record with locker
+	r.Lock()
+	defer r.Unlock()
 	_, ok := r.remoteStreams[remoteAddr]
 	if ok {
 		return errors.New("node had exists")
 	}
-	//add new record with locker
-	r.Lock()
-	defer r.Unlock()
+
+	//add new record
 	r.remoteStreams[remoteAddr] = stream
 	return nil
 }

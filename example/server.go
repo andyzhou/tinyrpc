@@ -17,6 +17,11 @@ import (
 
 //example code for server
 
+//global variable
+var (
+	s *tinyrpc.Service
+)
+
 //setup relate cb
 func cbForClientNodeUp(addr string) error {
 	log.Printf("cbForNodeUp, addr:%v", addr)
@@ -29,11 +34,18 @@ func cbForClientNodeDown(addr string) error {
 }
 
 func cbForGenReq(addr string, in *proto.Packet) (*proto.Packet, error) {
-	//log.Printf("cbForGenReq, addr:%v, in:%v", addr, in)
+	log.Printf("cbForGenReq, addr:%v, in:%v", addr, in)
 	return in, nil
 }
 func cbForStreamReq(addr string, in *proto.Packet) error {
-	//log.Printf("cbForStreamReq, addr:%v, in:%v", addr, in)
+	log.Printf("cbForStreamReq, addr:%v, in:%v", addr, in)
+
+	//send reply to client
+	//format data
+	reply := s.GenPacket()
+	reply.MessageId = 2
+	reply.Data = []byte(fmt.Sprintf("reply to %v", addr))
+	s.SendStreamData(reply, addr)
 	return nil
 }
 
@@ -124,9 +136,9 @@ func main() {
 	}()
 
 	//init server
-	s := tinyrpc.NewService()
+	s = tinyrpc.NewService()
 
-	//set
+	//set cb for gen and stream mode
 	s.SetCBForGeneral(cbForGenReq)
 	s.SetCBForStream(cbForStreamReq)
 
