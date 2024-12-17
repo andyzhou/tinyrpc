@@ -2,12 +2,13 @@ package rpc
 
 import (
 	"fmt"
-	"github.com/andyzhou/tinyrpc/define"
-	"github.com/andyzhou/tinyrpc/proto"
-	"golang.org/x/net/context"
 	"io"
 	"log"
 	"sync"
+
+	"github.com/andyzhou/tinyrpc/define"
+	"github.com/andyzhou/tinyrpc/proto"
+	"golang.org/x/net/context"
 )
 
 /*
@@ -21,9 +22,9 @@ import (
 //callback face
 type CallBack struct {
 	//cb for stream and gen data
-	streamCB func(string,*proto.Packet) error
-	generalCB func(string,*proto.Packet)(*proto.Packet, error)
-	nodeFace *Node //nodes
+	streamCB  func(string, *proto.Packet) error
+	generalCB func(string, *proto.Packet) (*proto.Packet, error)
+	nodeFace  *Node //nodes
 	sync.RWMutex
 }
 

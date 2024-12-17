@@ -7,9 +7,7 @@ import (
 )
 
 //util face
-type Util struct {
-
-}
+type Util struct {}
 
 //check chan is closed or not
 //true:closed, false:opening

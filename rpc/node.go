@@ -2,10 +2,11 @@ package rpc
 
 import (
 	"errors"
-	"github.com/andyzhou/tinyrpc/proto"
 	"log"
 	"runtime"
 	"sync"
+
+	"github.com/andyzhou/tinyrpc/proto"
 )
 
 /*

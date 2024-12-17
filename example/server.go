@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/andyzhou/tinyrpc"
-	"github.com/andyzhou/tinyrpc/proto"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +11,9 @@ import (
 	"time"
 
 	_ "net/http/pprof"
+
+	"github.com/andyzhou/tinyrpc"
+	"github.com/andyzhou/tinyrpc/proto"
 )
 
 //example code for server

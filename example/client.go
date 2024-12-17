@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/andyzhou/tinyrpc"
-	"github.com/andyzhou/tinyrpc/proto"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/andyzhou/tinyrpc"
+	"github.com/andyzhou/tinyrpc/proto"
 )
 
 //example code for client

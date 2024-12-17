@@ -3,10 +3,11 @@ package rpc
 import (
 	"context"
 	"errors"
-	"google.golang.org/grpc/stats"
 	"log"
 	"runtime"
 	"sync"
+
+	"google.golang.org/grpc/stats"
 )
 
 /*
@@ -22,9 +23,9 @@ type connCtxKey struct{}
 //stat face
 type Stat struct {
 	nodeFace *Node
-	connMap map[*stats.ConnTagInfo]string
+	connMap  map[*stats.ConnTagInfo]string
 	//relate cb
-	cbForRemoteUp func(string) error
+	cbForRemoteUp   func(string) error
 	cbForRemoteDown func(string) error
 	sync.RWMutex
 }

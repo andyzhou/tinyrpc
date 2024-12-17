@@ -3,14 +3,15 @@ package tinyrpc
 import (
 	"context"
 	"errors"
-	"github.com/andyzhou/tinyrpc/define"
-	"github.com/andyzhou/tinyrpc/proto"
-	"github.com/andyzhou/tinyrpc/util"
-	"google.golang.org/grpc"
 	"io"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/andyzhou/tinyrpc/define"
+	"github.com/andyzhou/tinyrpc/proto"
+	"github.com/andyzhou/tinyrpc/util"
+	"google.golang.org/grpc"
 )
 
 /*
