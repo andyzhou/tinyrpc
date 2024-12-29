@@ -148,7 +148,7 @@ func main() {
 	s.SetCBForClientNodeUp(cbForClientNodeUp)
 
 	//start profile
-	go startProfile()
+	//go startProfile()
 
 	//start service
 	wg.Add(1)

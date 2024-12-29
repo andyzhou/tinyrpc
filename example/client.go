@@ -174,13 +174,16 @@ func startNewClient() {
 func main() {
 	var (
 		wg sync.WaitGroup
+		maxClients = 8
 	)
 	//start send process
 	wg.Add(1)
 	log.Printf("start client...")
 
 	//start new client
-	startNewClient()
+	for i := 0; i < maxClients; i++ {
+		startNewClient()
+	}
 
 	wg.Wait()
 	log.Printf("end client...")

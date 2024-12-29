@@ -60,8 +60,10 @@ func (r *Node) CastToNodes(
 		return nil
 	}
 	
-	//cast to relate nodes
+	//cast to relate nodes with locker
 	if nodes != nil {
+		r.Lock()
+		defer r.Unlock()
 		for _, node := range nodes {
 			stream, isOk = r.remoteStreams[node]
 			if !isOk || stream == nil {
@@ -76,7 +78,9 @@ func (r *Node) CastToNodes(
 		return nil
 	}
 
-	//send to all
+	//send to all with lock
+	r.Lock()
+	defer r.Unlock()
 	for node, subStream := range r.remoteStreams {
 		err = subStream.Send(packet)
 		if err != nil {
@@ -91,6 +95,9 @@ func (r *Node) CastToNodes(
 func (r *Node) CleanUp() {
 	r.Lock()
 	defer r.Unlock()
+	for k, _ := range r.remoteStreams {
+		delete(r.remoteStreams, k)
+	}
 	r.remoteStreams = map[string]proto.PacketService_StreamReqServer{}
 	runtime.GC()
 }
