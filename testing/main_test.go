@@ -1,7 +1,6 @@
 package testing
 
 import (
-	"errors"
 	"fmt"
 	"github.com/andyzhou/tinyrpc"
 	"github.com/andyzhou/tinyrpc/proto"
@@ -21,21 +20,26 @@ const (
 //global variables
 var (
 	clients map[int]*tinyrpc.Client
+	client *tinyrpc.Client
 	err error
 	locker sync.RWMutex
 )
 
 //init
 func init() {
-	clients = map[int]*tinyrpc.Client{}
-	for i := 0; i < MaxClients; i++ {
-		client, subErr := initClient()
-		if subErr != nil {
-			panic(any(subErr))
-			return
-		}
-		clients[i] = client
+	client, err = initClient()
+	if err != nil {
+		panic(any(err))
 	}
+	//clients = map[int]*tinyrpc.Client{}
+	//for i := 0; i < MaxClients; i++ {
+	//	client, subErr := initClient()
+	//	if subErr != nil {
+	//		panic(any(subErr))
+	//		return
+	//	}
+	//	clients[i] = client
+	//}
 }
 
 //init new client
@@ -58,8 +62,8 @@ func getRandClient() *tinyrpc.Client {
 	//get target client
 	locker.Lock()
 	defer locker.Unlock()
-	client, ok := clients[randIdx]
-	if ok && client != nil {
+	client, _ = clients[randIdx]
+	if client != nil {
 		return client
 	}
 	return nil
@@ -67,11 +71,11 @@ func getRandClient() *tinyrpc.Client {
 
 //send gen rpc request
 func sendGenReq() (*proto.Packet, error){
-	//check
-	client := getRandClient()
-	if client == nil {
-		return nil, errors.New("can't get client")
-	}
+	////check
+	//client := getRandClient()
+	//if client == nil {
+	//	return nil, errors.New("can't get client")
+	//}
 
 	//init request packet
 	req := client.GenPacket()
@@ -108,5 +112,5 @@ func BenchmarkGenRpc(b *testing.B) {
 			succeed++
 		}
 	}
-	b.Logf("benchmark rpc result, succeed:%v, failed:%v\n", succeed, failed)
+	//b.Logf("benchmark rpc result, succeed:%v, failed:%v\n", succeed, failed)
 }

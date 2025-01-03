@@ -92,7 +92,7 @@ func (r *CallBack) StreamReq(stream proto.PacketService_StreamReqServer) error {
 			{
 				in, err = stream.Recv()
 				if err != nil {
-					log.Printf("service.RpcCallBack:StreamReq, in:%v, err:%v\n", err, in)
+					//log.Printf("service.RpcCallBack:StreamReq, in:%v, err:%v\n", err, in)
 					if err == io.EOF {
 						return nil
 					}

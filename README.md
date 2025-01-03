@@ -18,3 +18,15 @@ protoc --go_out=plugins=grpc:. *.proto
 
 # example
 - see `example` dir
+
+# testing
+```
+cd testing
+go test -v
+go test -v -run="GenRpc"
+
+go test -bench=.
+go test -bench=GenRpc
+go test -bench=GenRpc -benchmem -benchtime=20s
+
+```

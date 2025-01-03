@@ -25,21 +25,21 @@ var (
 
 //setup relate cb
 func cbForClientNodeUp(addr string) error {
-	log.Printf("cbForNodeUp, addr:%v", addr)
+	//log.Printf("cbForNodeUp, addr:%v", addr)
 	return nil
 }
 
 func cbForClientNodeDown(addr string) error {
-	log.Printf("cbForNodeDown, addr:%v", addr)
+	//log.Printf("cbForNodeDown, addr:%v", addr)
 	return nil
 }
 
 func cbForGenReq(addr string, in *proto.Packet) (*proto.Packet, error) {
-	log.Printf("cbForGenReq, addr:%v, in:%v", addr, in)
+	//log.Printf("cbForGenReq, addr:%v, in:%v", addr, in)
 	return in, nil
 }
 func cbForStreamReq(addr string, in *proto.Packet) error {
-	log.Printf("cbForStreamReq, addr:%v, in:%v", addr, in)
+	//log.Printf("cbForStreamReq, addr:%v, in:%v", addr, in)
 
 	//send reply to client
 	//format data
@@ -122,10 +122,10 @@ func main() {
 	)
 
 	//run time setup
-	n := 1
+	n := runtime.NumCPU()
 	runtime.GOMAXPROCS(n)
-	runtime.SetMutexProfileFraction(n)
-	runtime.SetBlockProfileRate(n)
+	//runtime.SetMutexProfileFraction(n)
+	//runtime.SetBlockProfileRate(n)
 
 	//defer
 	defer func() {

@@ -107,17 +107,17 @@ func sendStreamReqProcess(c *tinyrpc.Client) {
 
 //set cb for stream data
 func cbForStreamData(pack *proto.Packet) error {
-	log.Printf("cbForStreamData, pack messageId:%v", pack.MessageId)
+	//log.Printf("cbForStreamData, pack messageId:%v", pack.MessageId)
 	return nil
 }
 
 //set cb for service node down
 func cbForServiceNodeDown(node string) error {
-	log.Printf("cbForServiceNodeDown, node:%v\n", node)
+	//log.Printf("cbForServiceNodeDown, node:%v\n", node)
 
 	//close old process
 	closeChan <- true
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second)
 
 	//start new client
 	startNewClient()
